@@ -89,6 +89,8 @@ The platform is written in Python using the following building blocks:
 * [cgroups](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt) - For grid usage accounting.
 * [JSON](https::/json.org) - For task / result description and API communications.
 
+Temporary project logo is a slightly modified Mountain Railway Emoji (🚞) from [Google](https://github.com/googlei18n/noto-emoji/blob/master/svg/emoji_u1f69e.svg)
+
 License
 -------
 
