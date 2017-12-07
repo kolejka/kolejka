@@ -1,1 +1,95 @@
-# kolejka
+Welcome to _kolejka_
+====================
+
+**kolejka** is a lightweight task scheduling platform developed for a small computational grid at Faculty of Mathematics and Computer Science of the Jagiellonian University in Kraków.
+
+Each task is described by a set of files, and a command to run in a docker container.
+
+Example
+-------
+For example, the following task executes command `uname` in a standard ubuntu container with reasonable time/cpu/mem limits and collects standard output.
+
+* `kolejka_task.json`:
+```
+#!json
+{
+    "image"  : "ubuntu:xenial",
+    "exec"   : [ "uname" ],
+    "memory" : "64M",
+    "cpus"   : "1",
+    "time"   : "1s",
+    "pids"   : "16",
+    "stdout" : "stdout.txt"
+}
+```
+
+The result of running this task in our system is described by two files:
+
+* `kolejka_result.json`:
+```
+#!json
+{
+    "return" : 0
+    "files"  : [
+        "stdout.txt"
+    ]
+}
+```
+
+* `stdout.txt`:
+```
+Linux
+```
+
+You can check our [Task](https://github.com/kolejka/kolejka/wiki/Task), and [Result](https://github.com/kolejka/kolejka/wiki/Result) specification and see other [Examples](https://github.com/kolejka/kolejka/wiki/Examples).
+
+Usage
+-----
+
+You can use `kolejka-cli` to schedule tasks and download results from the server.
+```
+$ kolejka-cli task run task/kolejka_task.json
+```
+
+`kolejka-server` is a standard django manage application that can be used to control Kolejka Server. 
+```
+$ kolejka-server runserver
+```
+More details on Server installation and maintenance can be found in [Server Documentation](https://github.com/kolejka/kolejka/wiki/Server).
+You need to run Kolejka Foreman system on the grid nodes.
+
+You can use `kolejka-worker` to run tasks on your own computer. You need to install and run `docker-ce` and `kolejka-observer` in your system.
+```
+$ kolejka-worker run task/kolejka_task.json result/kolejka_result.json
+```
+
+Design Goals
+------------
+
+TODO
+
+Subsystems
+----------
+
+The platform is divided into the following subsystems:
+
+* [Server](https://github.com/kolejka/kolejka/wiki/Server) - Stores files and descriptions of tasks and results. Schedules execution of tasks. Defines security and access rights. Runs post-execution steps.
+* [Client](https://github.com/kolejka/kolejka/wiki/Client) - CLI and a set of convenience wrappers.
+* [Worker](https://github.com/kolejka/kolejka/wiki/Worker) - A script that runs a single task and collects the result.
+* [Observer](https://github.com/kolejka/kolejka/wiki/Observer) - A standalone server that allows docker contained applications to do basic cgroups-based system usage accounting.
+* [Foreman](https://github.com/kolejka/kolejka/wiki/Foreman) - An operating system image that controls one node in the grid - uses all system resources to run Workers.
+
+Acknowledgments
+---------------
+
+The platform is written in Python using the following building blocks:
+
+* [django](https://djangoproject.com) - For server implementation.
+* [docker](https://docker.com) - For task system image description and task execution containment.
+* [cgroups](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt) - For grid usage accounting.
+* [JSON](https::/json.org) - For task / result description and API communications.
+
+License
+-------
+
+Kolejka system is released under MIT License.

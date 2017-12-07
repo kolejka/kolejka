@@ -1,0 +1,40 @@
+#!/bin/bash
+# vim:ts=4:sts=4:sw=4:expandtab
+
+image="$1"
+squash="$2"
+tmpdir="$3"
+
+if [ -z "$image" ]; then
+    echo "You must specify docker image" >/dev/stderr
+    exit 1
+fi
+
+if [ -z "$squash" ]; then
+    echo "You must specify output file" >/dev/stderr
+    exit 1
+fi
+
+echo "Using image '$image'" >/dev/stderr
+container="$(docker run -d "$image" sleep $[3*60*60])"
+echo "Using container '$container'" >/dev/stderr
+sleep 10
+
+if [ -z "$tmpdir" ]; then
+    tmpdir="$(mktemp -d)"
+fi
+echo "Using temporary folder '$tmpdir'" >/dev/stderr
+mkdir -p "$tmpdir"
+pushd "$tmpdir"
+
+docker export "$container" | tar --numeric-owner -x
+docker stop "$container"
+docker rm "$container"
+
+rm .docker*
+chmod 755 .
+
+popd
+
+mksquashfs "$tmpdir" "$squash" -noappend -processors 18
+rm -rf "$tmpdir"
