@@ -10,8 +10,7 @@ Example
 For example, the following task executes command `uname` in a standard ubuntu container with reasonable time/cpu/mem limits and collects standard output.
 
 * `kolejka_task.json`:
-```
-#!json
+```json
 {
     "image"  : "ubuntu:xenial",
     "exec"   : [ "uname" ],
@@ -26,8 +25,7 @@ For example, the following task executes command `uname` in a standard ubuntu co
 The result of running this task in our system is described by two files:
 
 * `kolejka_result.json`:
-```
-#!json
+```json
 {
     "return" : 0
     "files"  : [
