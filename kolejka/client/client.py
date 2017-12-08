@@ -7,7 +7,7 @@ import re
 import requests
 import sys
 
-from kolejka.client.autoconfig import autoconfig
+from .autoconfig import autoconfig
 
 class KolejkaClient:
     def __init__(self, settings=None, **kwargs):

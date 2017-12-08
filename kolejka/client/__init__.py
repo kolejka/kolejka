@@ -1,3 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-from kolejka.client.client import KolejkaClient
+from .client import KolejkaClient
+
+def main():
+    pass
