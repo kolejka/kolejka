@@ -1,2 +1,6 @@
 __pycache__/
 settings_local.py
+VENV
+build/
+dist/
+*.egg-info/

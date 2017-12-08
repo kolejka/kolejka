@@ -4,8 +4,8 @@ from django.conf.urls import url
 
 from . import views
 
-app_name = 'blob'
+app_name = 'task'
 urlpatterns = [
-    url(r'^hash/(?P<hash>[0-9a-f]+)/?$', views.blob),
-    url(r'^(?P<key>[0-9a-f]*)/?$', views.reference),
+    url(r'^(?P<key>[0-9a-f]*)/?$', views.task),
+    url(r'^(?P<key>[0-9a-f]*)/result/?$', views.result),
 ]

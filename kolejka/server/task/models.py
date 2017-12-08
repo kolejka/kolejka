@@ -7,7 +7,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-from kolejka.blob.models import Reference
+from kolejka.server.blob.models import Reference
 
 class Task(models.Model):
     user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

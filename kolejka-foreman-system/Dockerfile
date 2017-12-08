@@ -46,7 +46,7 @@ RUN apt-get -f -y install \
         lvm2 \
         mdadm \
         nfs-client \
-        python3-virtualenv \
+        python3-venv \
         screen \
         squashfs-tools \
         ssh \

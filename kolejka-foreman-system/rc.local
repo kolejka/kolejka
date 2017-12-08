@@ -67,6 +67,9 @@ systemctl start docker
 
 # KOLEJKA
 git clone https://github.com/kolejka/kolejka /opt/kolejka
+pushd /opt/kolejka
+KOLEJKA_SYSTEMS=foreman,observer ./setup.py install
+popd
 
 # KOLEJKA OBSERVER DAEMON
 cat > /etc/systemd/system/kolejka-observer.service <<EOF
@@ -77,7 +80,7 @@ After=network.target
 [Service]
 TimeoutStartSec=0
 ExecStartPre=/bin/mkdir -p /var/run/kolejka
-ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/observer.pid --make-pidfile --exec /opt/kolejka/kolejka-observer -- --debug
+ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/observer.pid --make-pidfile --exec kolejka-observer -- --debug
 Restart=always
 
 [Install]
@@ -96,7 +99,7 @@ After=kolejka-observer.service
 [Service]
 TimeoutStartSec=0
 ExecStartPre=/bin/mkdir -p /var/run/kolejka
-ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/foreman.pid --make-pidfile --exec /opt/kolejka/kolejka-foreman -- --debug
+ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/foreman.pid --make-pidfile --exec kolejka-foreman -- --debug
 Restart=always
 
 [Install]

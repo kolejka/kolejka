@@ -6,21 +6,6 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-#from mptt.models import MPTTModel, TreeForeignKey
-
-#class Category(MPTTModel):
-#    name                  = models.CharField(max_length=64, unique=True, null=False, blank=False)
-#    parent                = TreeForeignKey('self', null=True, related_name='children')
-#    count_quota_hard_spec = models.CharField(max_length=16, null=False, blank=False)
-#    count_quota_hard      = models.BigIntegerField(null=False)
-#    count_quota_soft_spec = models.CharField(max_length=16, null=False, blank=False)
-#    count_quota_soft      = models.BigIntegerField(null=False)
-#    count                 = models.BigIntegerField(null=False, default=0)
-#    size_quota_hard_spec  = models.CharField(max_length=16, null=False, blank=False)
-#    size_quota_hard       = models.BigIntegerField(null=False)
-#    size_quota_soft_spec  = models.CharField(max_length=16, null=False, blank=False)
-#    size_quota_soft       = models.BigIntegerField(null=False)
-#    size                  = models.BigIntegerField(null=False, default=0)
 
 class Blob(models.Model):
     hash        = models.CharField(max_length=64, unique=True, null=False)

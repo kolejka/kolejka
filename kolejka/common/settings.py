@@ -4,4 +4,4 @@ OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"
 
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
-OBSERVER_SERVERSTRING = 'Kolejka Cgroup Observer Daemon'
+OBSERVER_SERVERSTRING = 'Kolejka Observer Daemon'

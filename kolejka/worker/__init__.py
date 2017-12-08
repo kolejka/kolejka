@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import argparse
@@ -12,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 
-import kolejka.settings
+from kolejka.common import settings
 from kolejka.common import parse_memory, parse_time
 from kolejka.observer.client import KolejkaObserverClient
 
@@ -84,8 +83,8 @@ def stage0():
         docker_call += [ '--name', docker_task ]
         docker_call += [ '--pids-limit', str(int(task_spec['pids'])) ]
         docker_call += [ '--stop-timeout', str(int(math.ceil(parse_time(task_spec['time'])))) ]
-        assert os.path.exists(kolejka.settings.OBSERVER_SOCKET)
-        docker_call += [ '--volume', '{}:{}:rw'.format(kolejka.settings.OBSERVER_SOCKET, kolejka.settings.OBSERVER_SOCKET) ]
+        assert os.path.exists(settings.OBSERVER_SOCKET)
+        docker_call += [ '--volume', '{}:{}:rw'.format(settings.OBSERVER_SOCKET, settings.OBSERVER_SOCKET) ]
         docker_call += [ '--volume', '{}:{}:rw'.format(jailed_path, '/opt/kolejka') ]
         for i in [ 'kolejka-worker', 'kolejka/settings.py', 'kolejka/common.py', 'kolejka/observer/client.py', 'kolejka/observer/server.py' ]:
             os.makedirs(os.path.dirname(os.path.join(jailed_path,i)), exist_ok=True)
@@ -201,8 +200,8 @@ def stage1():
             except:
                 pass
 
-
-if args.stage == 0:
-    stage0()
-elif args.stage == 1:
-    stage1()
+def main():
+    if args.stage == 0:
+        stage0()
+    elif args.stage == 1:
+        stage1()

@@ -14,7 +14,7 @@ import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
-import kolejka.settings
+from kolejka.common import settings
 from kolejka.common import HTTPUnixServer
 from kolejka.common import parse_memory, parse_time
 
@@ -28,7 +28,7 @@ class ControlGroupSystem:
                     cgroup, hierarchy, num_cgroups, enabled = re.split(r'\s+', line.strip())
                     available_groups.add(cgroup)
 
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             assert group in available_groups
 
         self.mount_points = dict()
@@ -42,7 +42,7 @@ class ControlGroupSystem:
                             logging.debug('Found \'%s\' control group at mount point \'%s\''%(group, path))
                             self.mount_points[group] = path
 
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             assert group in self.mount_points
 
     def mount_point(self, group):
@@ -122,9 +122,9 @@ class Session:
         self.id = session_id
         process_groups = self.system.process_groups(pid)
         self.groups = dict()
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             self.groups[group] = self.session_group_path(group, path=process_groups[group])
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             if group == 'memory':
                 with open(os.path.join(os.path.dirname(self.groups[group]), 'memory.use_hierarchy')) as f:
                     use_hierarchy = bool(f.readline().strip())
@@ -160,9 +160,9 @@ class Session:
 
     def attach(self, subpath, pid):
         process_groups = self.system.process_groups(pid)
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             assert self.session_group_path(group, process_groups[group]).startswith(self.groups[group])
-        for group in kolejka.settings.OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             self.ensure_subpath(group, subpath)
             tasks_path = self.group_path(group, subpath=subpath, filename='tasks')
             assert os.path.isfile(tasks_path)
@@ -283,7 +283,7 @@ class Session:
         state = self.freezing(subpath=subpath)
         self.freeze(subpath=subpath, freeze=True)
 
-        for group in sorted(kolejka.settings.OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
+        for group in sorted(settings.OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
             src_path = self.group_path(group, subpath=subpath)
             dst_path = os.path.normpath(os.path.join(src_path, '..', 'tasks'))
             for d, _, _ in os.walk(src_path, topdown=False):
@@ -371,7 +371,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
     def session_registry(self):
         return self.server.session_registry
     def version_string(self):
-        return kolejka.settings.OBSERVER_SERVERSTRING
+        return settings.OBSERVER_SERVERSTRING
 
     def do_HEAD(self):
         self.send_response(200)
@@ -487,24 +487,25 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         result['secret'] = self.generate_secret(result['session_id'])
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.create(result['session_id'], pid)
+        self.session_registry.create(sparams.session_id, pid)
         result['status'] = 'ok'
         return result
 
     def cmd_attach(self, params):
         result = dict()
-        result['session_id'] = self.generate_session_id()
-        result['secret'] = self.generate_secret(result['session_id'])
+        if 'session_id' not in result:
+            result['session_id'] = self.generate_session_id()
+            result['secret'] = self.generate_secret(result['session_id'])
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.attach(result['session_id'], sparams.subpath, pid)
+        self.session_registry.attach(sparams.session_id, sparams.subpath, pid)
         result['status'] = 'ok'
         return result
 
     def cmd_limit(self, params):
         result = dict()
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.limit(params['session_id'], sparams.subpath,
+        self.session_registry.limit(sparams.session_id, sparams.subpath,
                 pids = sparams.pids,
                 memory = sparams.memory,
                 cpus = sparams.cpus,
@@ -514,35 +515,35 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
 
     def cmd_stats(self, params):
         sparams = ObserverHandler.std_params(params)
-        result = self.session_registry.stats(params['session_id'], sparams.subpath)
+        result = self.session_registry.stats(sparams.session_id, sparams.subpath)
         result['status'] = 'ok'
         return result
 
     def cmd_freeze(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.freeze(params['session_id'], sparams.subpath)
+        self.session_registry.freeze(sparams.session_id, sparams.subpath)
         result['status'] = 'ok'
         return result
 
     def cmd_thaw(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.thaw(params['session_id'], sparams.subpath)
+        self.session_registry.thaw(sparams.session_id, sparams.subpath)
         result['status'] = 'ok'
         return result
 
     def cmd_kill(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.kill(params['session_id'], sparams.subpath)
+        self.session_registry.kill(sparams.session_id, sparams.subpath)
         result['status'] = 'ok'
         return result
 
     def cmd_close(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.close(params['session_id'], sparams.subpath)
+        self.session_registry.close(sparams.session_id, sparams.subpath)
         result['status'] = 'ok'
         return result
 
@@ -562,3 +563,32 @@ class KolejkaObserverServer(ObserverServer):
         os.makedirs(socket_dir_path, exist_ok=True)
         assert os.path.isdir(socket_dir_path)
         super().__init__(socket_path, ObserverHandler)
+
+def main():
+    import argparse
+    import logging
+    import os
+    import traceback
+    from kolejka.common import settings
+    from kolejka.observer import KolejkaObserverServer
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--socket", type=str, default=settings.OBSERVER_SOCKET, help='listen on socket')
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
+    parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
+    args = parser.parse_args()
+    level=logging.WARNING
+    if args.verbose:
+        level=logging.INFO
+    if args.debug:
+        level=logging.DEBUG
+    logging.basicConfig(level=level)
+
+    try:
+        with KolejkaObserverServer(args.socket) as server:
+            server.serve_forever()
+    except KeyboardInterrupt:
+        raise
+    except:
+        traceback.print_exc()
+        raise
