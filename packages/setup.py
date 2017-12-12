@@ -12,11 +12,14 @@ kolejka = {
         'url' : 'https://github.com/kolejka/kolejka',
         'author' : 'KOLEJKA',
         'author_email' : 'kolejka@matinf.uj.edu.pl',
+        'long_description' : 'kolejka is a lightweight task scheduling platform developed for a small computational grid at Faculty of Mathematics and Computer Science of the Jagiellonian University in Kraków.',
         'license' : 'MIT',
         'version' : '0.1',
         'python_requires' : '>=3.0',
-        'zip_safe' : False,
         'namespace_packages' : [ 'kolejka' ],
+        'setup_requires' : [
+            'wheel',
+        ]
     }
 
 kolejka_common = {
@@ -60,6 +63,8 @@ kolejka_client = {
         'description' : 'Kolejka Client',
         'packages' : sub_find_packages('kolejka.client'),
         'install_requires' : [
+            'appdirs',
+            'requests',
             'KolejkaCommon',
         ],
         'entry_points' : {
@@ -119,6 +124,10 @@ for pkg in reversed(all_pkgs):
        for dep in pkg.get('install_requires', []):
            selected_pkgs.add(dep)
 
-for pkg in all_pkgs:
-    if pkg['name'] in selected_pkgs:
-        setup(**pkg)
+if __name__ == '__main__':
+    import subprocess
+    import sys
+    for pkg in all_pkgs:
+        if pkg['name'] in selected_pkgs:
+            print(pkg['name'])
+            subprocess.call(['python3', './setup.py'] + sys.argv[1:], cwd=pkg['name'])

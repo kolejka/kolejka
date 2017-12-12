@@ -4,3 +4,4 @@ VENV
 build/
 dist/
 *.egg-info/
+.eggs/
