@@ -17,93 +17,14 @@ kolejka = {
         'version' : '0.1',
         'python_requires' : '>=3.0',
         'namespace_packages' : [ 'kolejka' ],
-        'setup_requires' : [
-            'wheel',
-        ]
     }
 
-kolejka_common = {
-        'name' : 'KolejkaCommon',
-        'description' : 'Kolejka Common',
-        'packages' : sub_find_packages('kolejka.common'),
-    }
-
-kolejka_observer = {
-        'name' : 'KolejkaObserver',
-        'description' : 'Kolejka Observer Daemon',
-        'packages' : sub_find_packages('kolejka.observer'),
-        'install_requires' : [
-            'KolejkaCommon',
-        ],
-        'entry_points' : {
-            'console_scripts' : [
-                'kolejka-observer = kolejka.observer.server:main',
-            ],
-        },
-    }
-
-kolejka_server = {
-        'name' : 'KolejkaServer',
-        'description' : 'Kolejka Server',
-        'packages' : sub_find_packages('kolejka.server'),
-        'install_requires' : [
-            'django',
-            'psycopg2',
-            'KolejkaCommon',
-        ],
-        'entry_points' : {
-            'console_scripts' : [
-                'kolejka-server = kolejka.server:main',
-            ],
-        },
-    }
-
-kolejka_client = {
-        'name' : 'KolejkaClient',
-        'description' : 'Kolejka Client',
-        'packages' : sub_find_packages('kolejka.client'),
-        'install_requires' : [
-            'appdirs',
-            'requests',
-            'KolejkaCommon',
-        ],
-        'entry_points' : {
-            'console_scripts' : [
-                'kolejka-client = kolejka.client:main',
-            ],
-        },
-    }
-
-kolejka_worker = {
-        'name' : 'KolejkaWorker',
-        'description' : 'Kolejka Worker',
-        'packages' : sub_find_packages('kolejka.worker'),
-        'install_requires' : [
-            'KolejkaCommon',
-            'KolejkaObserver',
-        ],
-        'entry_points' : {
-            'console_scripts' : [
-                'kolejka-worker = kolejka.worker:main',
-            ],
-        },
-    }
-
-kolejka_foreman = {
-        'name' : 'KolejkaForeman',
-        'description' : 'Kolejka Foreman',
-        'packages' : sub_find_packages('kolejka.foreman'),
-        'install_requires' : [
-            'KolejkaCommon',
-            'KolejkaWorker',
-            'KolejkaClient',
-        ],
-        'entry_points' : {
-            'console_scripts' : [
-                'kolejka-foreman = kolejka.foreman:main',
-            ],
-        },
-    }
+from KolejkaCommon.setup import kolejka_common
+from KolejkaObserver.setup import kolejka_observer
+from KolejkaServer.setup import kolejka_server
+from KolejkaClient.setup import kolejka_client
+from KolejkaWorker.setup import kolejka_worker
+from KolejkaForeman.setup import kolejka_foreman
 
 all_pkgs = [ kolejka_common, kolejka_observer, kolejka_server, kolejka_client, kolejka_worker, kolejka_foreman ]
 all_pkgs_names = [ pkg['name'] for pkg in all_pkgs ]
@@ -129,5 +50,4 @@ if __name__ == '__main__':
     import sys
     for pkg in all_pkgs:
         if pkg['name'] in selected_pkgs:
-            print(pkg['name'])
             subprocess.call(['python3', './setup.py'] + sys.argv[1:], cwd=pkg['name'])

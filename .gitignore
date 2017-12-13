@@ -3,5 +3,6 @@ settings_local.py
 VENV
 build/
 dist/
+deb_dist/
 *.egg-info/
 .eggs/
