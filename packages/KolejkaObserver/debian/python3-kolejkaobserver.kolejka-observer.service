@@ -3,7 +3,7 @@ Description=KolejkaObserver
 
 [Service]
 ExecStartPre=/bin/mkdir -p /var/run/kolejka/observer
-ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/observer/pid --make-pidfile --exec kolejka-observer --
+ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/observer/pid --make-pidfile --exec /usr/bin/kolejka-observer --
 Restart=always
 
 [Install]
