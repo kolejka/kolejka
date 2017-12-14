@@ -6,3 +6,4 @@ dist/
 deb_dist/
 *.egg-info/
 .eggs/
+/packages/Kolejka*/setup.cfg

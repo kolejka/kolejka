@@ -8,17 +8,6 @@ from setuptools import setup, find_packages
 def sub_find_packages(module):
     return [ module ] + [ module + '.' + submodule for submodule in find_packages(re.sub(r'\.', r'/', module)) ]
 
-kolejka = {
-        'url' : 'https://github.com/kolejka/kolejka',
-        'author' : 'KOLEJKA',
-        'author_email' : 'kolejka@matinf.uj.edu.pl',
-        'long_description' : 'kolejka is a lightweight task scheduling platform developed for a small computational grid at Faculty of Mathematics and Computer Science of the Jagiellonian University in Kraków.',
-        'license' : 'MIT',
-        'version' : '0.1',
-        'python_requires' : '>=3.0',
-        'namespace_packages' : [ 'kolejka' ],
-    }
-
 kolejka_foreman = {
         'name' : 'KolejkaForeman',
         'description' : 'Kolejka Foreman',
@@ -36,5 +25,5 @@ kolejka_foreman = {
     }
 
 if __name__ == '__main__':
-    kolejka_foreman.update(kolejka)
+    assert os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'setup.cfg'))
     setup(**kolejka_foreman)

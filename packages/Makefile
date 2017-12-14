@@ -9,17 +9,17 @@ python:
 
 .PHONY: debian
 debian:
-	echo python3 ./setup.py --command-packages=stdeb.command sdist_dsc --debian-version "$$(date '+%s')"  --with-python2=False --with-python3=True --suite xenial --maintainer "Grzegorz Gutowski <grzegorz.gutowski@uj.edu.pl>" bdist_deb 
+	python3 ./setup.py --command-packages=stdeb.command sdist_dsc --with-python2=False --with-python3=True --maintainer "kolejka.matinf.uj.edu.pl <kolejka@matinf.uj.edu.pl>" --suite xenial bdist_deb 
 	mkdir -p dist
 	find Kolejka*/deb_dist -type f -name "*.deb" -exec cp -a {} dist ";"
 	find Kolejka*/deb_dist -type f -name "*.dsc" -exec cp -a {} dist ";"
 	find Kolejka*/deb_dist -type f -name "*.orig.tar.gz" -exec cp -a {} dist ";"
 	find Kolejka*/deb_dist -type f -name "*.debian.tar.xz" -exec cp -a {} dist ";"
 	find Kolejka*/deb_dist -type f -name "*_source.changes" -exec cp -a {} dist ";"
-	find dist -type f -name "*_source.changes" -exec debsign --no-conf "-mGrzegorz Gutowski <grzegorz.gutowski@uj.edu.pl>" --re-sign -S {} ";"
+	find dist -type f -name "*_source.changes" -exec debsign --no-conf "-mkolejka.matinf.uj.edu.pl <kolejka@matinf.uj.edu.pl>" --re-sign -S {} ";"
 
 launchpad: debian
-	find dist -type f -name "*_source.changes" -exec debsign --no-conf "-mGrzegorz Gutowski <grzegorz.gutowski@uj.edu.pl>" --re-sign -S {} ";"
+	find dist -type f -name "*_source.changes" -exec debsign --no-conf "-mkolejka.matinf.uj.edu.pl <kolejka@matinf.uj.edu.pl>" --re-sign -S {} ";"
 	find dist -type f -name "*_source.changes" -exec dput ppa:kolejka/kolejka {} ";"
 
 .PHONY: collect

@@ -5,9 +5,6 @@ import re
 import os
 from setuptools import setup, find_packages
 
-def sub_find_packages(module):
-    return [ module ] + [ module + '.' + submodule for submodule in find_packages(re.sub(r'\.', r'/', module)) ]
-
 kolejka = {
         'url' : 'https://github.com/kolejka/kolejka',
         'author' : 'KOLEJKA',
@@ -46,8 +43,31 @@ for pkg in reversed(all_pkgs):
            selected_pkgs.add(dep)
 
 if __name__ == '__main__':
+    import datetime
     import subprocess
     import sys
+    p = subprocess.Popen(['git', 'show', '-s', '--format=%at'], stdout=subprocess.PIPE)
+    s = datetime.datetime.fromtimestamp(int(p.communicate()[0]), datetime.timezone.utc)
+    assert p.returncode == 0
+    kolejka['version'] += '.'+s.strftime('%Y%m%d%H%M')
+    for pkg in all_pkgs:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), pkg['name'], 'setup.cfg'), 'w') as setup_cfg:
+            setup = list()
+            setup.append('[metadata]')
+            for key in [ 'name', 'version', 'url', 'download_url', 'author', 'author_email', 'maintainer', 'maintainer_email', 'classifiers', 'license', 'description', 'long_description', 'long_description_content_type', 'keywords', 'platforms', 'provides', 'requires', 'obsoletes' ]:
+                if key in kolejka:
+                    val = kolejka[key]
+                    if isinstance(val, list):
+                        val = ', '.join(val)
+                    setup.append('{} = {}'.format(key, val))
+            setup.append('[options]')
+            for key in [ 'namespace_packages', 'python_requires' ]:
+                if key in kolejka:
+                    val = kolejka[key]
+                    if isinstance(val, list):
+                        val = ', '.join(val)
+                    setup.append('{} = {}'.format(key, val))
+            setup_cfg.writelines([line+'\n' for line in setup])
     for pkg in all_pkgs:
         if pkg['name'] in selected_pkgs:
             subprocess.call(['python3', './setup.py'] + sys.argv[1:], cwd=pkg['name'])
