@@ -22,7 +22,7 @@ RUN apt-get -f -y install \
     locale-gen en_US.UTF-8 && \
     update-locale LANG=en_US.UTF-8
 
-RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu artful stable" >> /etc/apt/sources.list && \
+RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable" >> /etc/apt/sources.list && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-key 7EA0A9C3F273FCD8
 RUN echo "deb http://ppa.launchpad.net/kolejka/kolejka/ubuntu artful main" >> /etc/apt/sources.list && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-key EE527D561340007D
@@ -43,7 +43,7 @@ RUN apt-get -f -y install \
         ethtool \
         git \
         iptables \
-        kolejka-foreman \
+        python3-kolejkaforeman \
         lshw \
         lupin-casper \
         lvm2 \
