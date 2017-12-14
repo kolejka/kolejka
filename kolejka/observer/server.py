@@ -568,6 +568,7 @@ def main():
     import argparse
     import logging
     import os
+    import setproctitle
     import traceback
     from kolejka.common import settings
     from kolejka.observer import KolejkaObserverServer
@@ -583,6 +584,7 @@ def main():
     if args.debug:
         level=logging.DEBUG
     logging.basicConfig(level=level)
+    setproctitle.setproctitle('kolejka-observer')
 
     try:
         with KolejkaObserverServer(args.socket) as server:
@@ -592,3 +594,6 @@ def main():
     except:
         traceback.print_exc()
         raise
+
+if __name__ == '__main__':
+    main()
