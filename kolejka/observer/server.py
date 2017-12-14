@@ -104,6 +104,16 @@ class Session:
     def available_cpus(self, subpath='/'):
         return self.cpuset_cpus(os.path.dirname(self.group_path('cpuset', subpath=subpath)))
 
+    def pid_start_time(self, pid):
+        try:
+            stat_path = os.path.join('/proc', str(pid), 'stat')
+            with open(stat_path) as stat_file:
+                stats = stat_file.read()
+            stats = re.sub(r'^[^)]*\) ', '', stats).split()
+            return int(stats[20])
+        except:
+            pass
+
     def limited_pids(self, subpath='/'):
         path = self.group_path('pids', subpath=subpath)
         result = 2**16
@@ -117,9 +127,18 @@ class Session:
             path = os.path.dirname(path)
         return result
 
+    def finished(self):
+        if self.pid_start_time(self.creator_pid) == self.creator_start_time:
+            return False
+        if len(self.list_group('pids')) > 0:
+            return False
+        return True
+
     def __init__(self, registry, session_id, pid):
         self.registry = registry
         self.id = session_id
+        self.creator_pid = pid
+        self.creator_start_time = self.pid_start_time(self.creator_pid)
         process_groups = self.system.process_groups(pid)
         self.groups = dict()
         for group in settings.OBSERVER_CGROUPS:
@@ -135,7 +154,7 @@ class Session:
                     with open(os.path.join(os.path.dirname(self.groups[group]), inherit)) as f:
                         with open(os.path.join(self.groups[group], inherit), 'w') as t:
                             t.write(f.read())
-        logging.debug('Created session %s with paths [%s]'%(self.id, ','.join(self.groups.values())))
+        logging.debug('Created session %s with paths [%s] for pid %s'%(self.id, ','.join(self.groups.values()), self.creator_pid))
 
     def ensure_subpath(self, group, subpath='/'):
         root_path = self.groups[group]
@@ -269,7 +288,7 @@ class Session:
         state = self.freezing(subpath=subpath)
         self.freeze(subpath=subpath, freeze=True)
 
-        pids = self.list_group('cpuacct', subpath=subpath)
+        pids = self.list_group('pids', subpath=subpath)
         for pid in pids:
             try:
                 os.kill(int(pid), signal.SIGKILL)
@@ -304,6 +323,11 @@ class SessionRegistry:
     def cleanup(self):
         for session_id in dict(self.sessions):
             self.close(session_id)
+
+    def cleanup_finished(self):
+        for session_id, session in list(self.sessions.items()):
+            if session.finished():
+                self.close(session_id)
 
     def create(self, session_id, pid):
         if session_id not in self.sessions:
@@ -355,7 +379,8 @@ class SessionRegistry:
         if session_id not in self.sessions:
             return
         self.sessions[session_id].close(subpath=subpath)
-        del self.sessions[session_id]
+        if subpath=='/':
+            del self.sessions[session_id]
 
 class ObserverServer(socketserver.ThreadingMixIn, HTTPUnixServer):
     def __enter__(self, *args, **kwargs):
@@ -374,12 +399,15 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         return settings.OBSERVER_SERVERSTRING
 
     def do_HEAD(self):
+        self.session_registry.cleanup_finished()
         self.send_response(200)
 
     def do_GET(self, params_override={}):
+        self.session_registry.cleanup_finished()
         self.send_response(200)
 
     def do_POST(self):
+        self.session_registry.cleanup_finished()
         try:
             post_data = dict()
             if 'Content-Length' in self.headers:
@@ -391,7 +419,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
                     post_data = json.loads(self.rfile.read(post_length).decode(post_charset))
             url = urlparse(self.path)
             path = url.path.strip('/ ').lower()
-            assert re.match(r'[a-z]+', path)
+            assert re.match(r'[a-z]*', path)
         except:
             logging.warning(traceback.format_exc())
             self.send_error(400)
@@ -483,22 +511,27 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
 
     def cmd_create(self, params):
         result = dict()
-        result['session_id'] = self.generate_session_id()
-        result['secret'] = self.generate_secret(result['session_id'])
+        params['session_id'] = self.generate_session_id()
+        params['secret'] = self.generate_secret(params['session_id'])
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
         self.session_registry.create(sparams.session_id, pid)
+        result['session_id'] = sparams.session_id
+        result['secret'] = sparams.secret
         result['status'] = 'ok'
         return result
 
     def cmd_attach(self, params):
         result = dict()
-        if 'session_id' not in result:
-            result['session_id'] = self.generate_session_id()
-            result['secret'] = self.generate_secret(result['session_id'])
+        if 'session_id' not in params:
+            params['session_id'] = self.generate_session_id()
+            params['secret'] = self.generate_secret(params['session_id'])
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
         self.session_registry.attach(sparams.session_id, sparams.subpath, pid)
+        if 'session_id' not in params:
+            result['session_id'] = sparams.session_id
+            result['secret'] = sparams.secret
         result['status'] = 'ok'
         return result
 
