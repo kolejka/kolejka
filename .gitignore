@@ -7,7 +7,9 @@ deb_dist/
 *.egg-info/
 .eggs/
 /packages/Kolejka*/setup.cfg
-
+/kolejka-foreman-system/kolejka-foreman.initrd
+/kolejka-foreman-system/kolejka-foreman.squashfs
+/kolejka-foreman-system/kolejka-foreman.vmlinuz
 *.zip
 *.tar.gz
 *.tar.xz

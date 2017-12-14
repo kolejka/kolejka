@@ -1,18 +1,21 @@
 .PHONY: all
-all : foreman.squashfs foreman.vmlinuz
+all : build kolejka-foreman.squashfs kolejka-foreman.vmlinuz
 
 .PHONY: build
 build :
 	docker build --no-cache --tag kolejka.matinf.uj.edu.pl/kolejka:foreman .
+	docker push kolejka.matinf.uj.edu.pl/kolejka:foreman
 
-foreman.squashfs : build
-	./docker_squash kolejka.matinf.uj.edu.pl/kolejka:foreman foreman.squashfs
+kolejka-foreman.squashfs :
+	docker pull kolejka.matinf.uj.edu.pl/kolejka:foreman
+	./docker_squash kolejka.matinf.uj.edu.pl/kolejka:foreman kolejka-foreman.squashfs
 
-foreman.vmlinuz : foreman.squashfs
-	./squash_extract_vmlinuz foreman.squashfs foreman.vmlinuz foreman.initrd
+kolejka-foreman.vmlinuz : kolejka-foreman.squashfs
+	./squash_extract_vmlinuz kolejka-foreman.squashfs kolejka-foreman.vmlinuz kolejka-foreman.initrd
 
 .PHONY: deploy
 deploy :
-	cp -a foreman.squashfs /srv/nfs/kolejka/foreman/casper/filesystem.squashfs
-	cp -a foreman.vmlinuz /srv/tftp/configs/kolejka/foreman/vmlinuz
-	cp -a foreman.initrd /srv/tftp/configs/kolejka/foreman/initrd
+	cp -a kolejka-foreman.squashfs /srv/nfs/kolejka/foreman/casper/filesystem.squashfs
+	cp -a kolejka-foreman.vmlinuz /srv/tftp/configs/kolejka/foreman/vmlinuz
+	cp -a kolejka-foreman.initrd /srv/tftp/configs/kolejka/foreman/initrd
+	checker_restart 16
