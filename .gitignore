@@ -7,3 +7,7 @@ deb_dist/
 *.egg-info/
 .eggs/
 /packages/Kolejka*/setup.cfg
+
+*.zip
+*.tar.gz
+*.tar.xz

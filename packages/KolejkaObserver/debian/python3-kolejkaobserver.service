@@ -1,0 +1,8 @@
+[Unit]
+Description=KolejkaObserver
+
+[Service]
+ExecStart=/usr/bin/kolejka-observer
+
+[Install]
+WantedBy=multi-user.target
