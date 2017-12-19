@@ -13,7 +13,7 @@ For example, the following task executes command `uname` in a standard ubuntu co
 ```json
 {
     "image"  : "ubuntu:xenial",
-    "exec"   : [ "uname" ],
+    "args"   : [ "uname" ],
     "memory" : "64M",
     "cpus"   : "1",
     "time"   : "1s",

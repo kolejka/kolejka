@@ -5,3 +5,7 @@ OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
 OBSERVER_SERVERSTRING = 'Kolejka Observer Daemon'
+
+TASK_SPEC = 'kolejka_task.json'
+
+RESULT_SPEC = 'kolejka_result.json'

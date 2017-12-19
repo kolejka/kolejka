@@ -2,7 +2,7 @@
 
 def parse_float_with_modifiers(x, modifiers):
     modifier = 1
-    x = x.strip().lower()
+    x = str(x).strip().lower()
     while len(x) > 0 and x[-1] in modifiers :
         modifier *= modifiers[x[-1]]
         x = x[:-1]
@@ -16,6 +16,9 @@ def parse_time(x) :
         'n' : 10**-9,
     })
 
+def unparse_time(x) :
+    return str(x)
+
 def parse_memory(x):
     return int(round(parse_float_with_modifiers(x, {
         'b' : 1,
@@ -25,3 +28,7 @@ def parse_memory(x):
         't' : 1024**4,
         'p' : 1024**5,
     })))
+
+def unparse_memory(x):
+    return str(x)
+

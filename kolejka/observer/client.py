@@ -16,11 +16,13 @@ class KolejkaObserverClient:
         self.session = session
         self.secret = secret
     def request(self, cmd, path, headers, body):
+        logging.debug('Observer client sent : '+str(body, 'utf-8'))
         self.connection.request(cmd, path, body, headers)
         with self.connection.getresponse() as response:
             response_type, response_type_dict  = cgi.parse_header(response.getheader('Content-Type', self.content_type))
             response_charset = response_type_dict.get('charset', 'utf-8')
             response_body = response.read().decode(response_charset)
+            logging.debug('Observer client received : '+response_body)
             result = json.loads(response_body)
             self.session = result.get('session_id', self.session)
             self.secret = result.get('secret', self.secret)

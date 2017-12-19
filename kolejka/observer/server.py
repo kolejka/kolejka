@@ -299,19 +299,27 @@ class Session:
         self.freeze(subpath=subpath, freeze=state)
 
     def close(self, subpath):
-        state = self.freezing(subpath=subpath)
-        self.freeze(subpath=subpath, freeze=True)
+        try:
+            self.freeze(subpath=subpath, freeze=True)
+        except:
+            pass
 
         for group in sorted(settings.OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
-            src_path = self.group_path(group, subpath=subpath)
-            dst_path = os.path.normpath(os.path.join(src_path, '..', 'tasks'))
-            for d, _, _ in os.walk(src_path, topdown=False):
-                group_list_file = os.path.join(src_path, d, 'cgroup.procs')
-                if os.path.exists(group_list_file):
-                    with open(dst_path, 'w') as t:
-                        with open(group_list_file) as f:
-                            t.write(f.read())
-                os.rmdir(os.path.join(src_path, d))
+            try:
+                src_path = self.group_path(group, subpath=subpath)
+                dst_path = os.path.normpath(os.path.join(src_path, '..', 'tasks'))
+                for d, _, _ in os.walk(src_path, topdown=False):
+                    group_list_file = os.path.join(src_path, d, 'cgroup.procs')
+                    if os.path.exists(group_list_file):
+                        try:
+                            with open(dst_path, 'w') as t:
+                                with open(group_list_file) as f:
+                                    t.write(f.read())
+                        except:
+                            pass
+                    os.rmdir(os.path.join(src_path, d))
+            except:
+                pass
         logging.debug('CLOSED session %s [%s]'%(self.id, subpath))
             
 class SessionRegistry:
@@ -526,12 +534,11 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         if 'session_id' not in params:
             params['session_id'] = self.generate_session_id()
             params['secret'] = self.generate_secret(params['session_id'])
+            result['session_id'] = params['session_id']
+            result['secret'] = params['secret']
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
         self.session_registry.attach(sparams.session_id, sparams.subpath, pid)
-        if 'session_id' not in params:
-            result['session_id'] = sparams.session_id
-            result['secret'] = sparams.secret
         result['status'] = 'ok'
         return result
 
@@ -606,7 +613,7 @@ def main():
     from kolejka.common import settings
     from kolejka.observer import KolejkaObserverServer
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='KOLEJKA observer')
     parser.add_argument("-s", "--socket", type=str, default=settings.OBSERVER_SOCKET, help='listen on socket')
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
     parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
