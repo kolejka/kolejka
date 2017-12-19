@@ -27,7 +27,7 @@ The result of running this task in our system is described by two files:
 * `kolejka_result.json`:
 ```json
 {
-    "return" : 0,
+    "result" : 0,
     "files"  : [
         "stdout.txt"
     ]
