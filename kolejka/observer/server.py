@@ -17,6 +17,7 @@ import uuid
 from kolejka.common import settings
 from kolejka.common import HTTPUnixServer
 from kolejka.common import parse_memory, parse_time
+from kolejka.common import KolejkaLimits, KolejkaStats
 
 class ControlGroupSystem:
     def __init__(self):
@@ -189,30 +190,30 @@ class Session:
                 tasks_file.write(str(pid))
         logging.debug('Attached process %s to session %s [%s]'%(str(pid), self.id, subpath))
 
-    def limit(self, subpath, pids=None, memory=None, cpus=None, cpu_offset=0):
-        if memory:
+    def limits(self, subpath, limits=KolejkaLimits(), cpu_offset=0):
+        if limits.memory is not None:
             assert 'memory' in self.groups
             limit_file = self.group_path('memory', subpath=subpath, filename='memory.limit_in_bytes')
             with open(limit_file, 'w') as f:
-                f.write(str(memory))
+                f.write(str(limits.memory))
             logging.debug('Limited session %s [%s] memory to %s bytes'%(self.id, subpath, memory))
-        if cpus:
+        if limits.cpus is not None:
             assert 'cpuset' in self.groups
             cpuset_cpus = self.available_cpus(subpath=subpath)
             logging.debug('Available cpus: %s', ','.join([str(c) for c in cpuset_cpus]))
-            if len(cpuset_cpus) < cpu_offset + cpus:
+            if len(cpuset_cpus) < cpu_offset + limits.cpus:
                 cpu_offset = 0
-            if len(cpuset_cpus) > cpu_offset + cpus:
-                cpuset_cpus = cpuset_cpus[0:cpus]
+            if len(cpuset_cpus) > cpu_offset + limits.cpus:
+                cpuset_cpus = cpuset_cpus[0:limits.cpus]
             limit_file = self.group_path('cpuset', subpath=subpath, filename='cpuset.cpus')
             with open(limit_file, 'w') as f:
                 f.write(','.join([str(c) for c in cpuset_cpus]))
             logging.debug('Limited session %s [%s] cpus to %s'%(self.id, subpath, ','.join([str(c) for c in cpuset_cpus])))
-        if pids:
+        if limits.pids is not None:
             assert 'pids' in self.groups
             limit_file = self.group_path('pids', subpath=subpath, filename='pids.max')
             with open(limit_file, 'w') as f:
-                f.write(str(pids))
+                f.write(str(limits.pids))
             logging.debug('Limited session %s [%s] pids to %s'%(self.id, subpath, pids))
 
     def freeze(self, subpath, freeze=True):
@@ -239,49 +240,39 @@ class Session:
             return f.readline().strip() == '1'
 
     def stats(self, subpath):
-        result = dict()
+        result = KolejkaStats()
         if 'memory' in self.groups:
-            result['memory'] = dict()
             usage_file = self.group_path('memory', subpath=subpath, filename='memory.usage_in_bytes')
             with open(usage_file) as f:
-                result['memory']['usage'] = int(f.readline().strip())
+                result.memory.usage = int(f.readline().strip())
             usage_file = self.group_path('memory', subpath=subpath, filename='memory.max_usage_in_bytes')
             with open(usage_file) as f:
-                result['memory']['max_usage'] = int(f.readline().strip())
+                result.memory.max_usage = int(f.readline().strip())
             usage_file = self.group_path('memory', subpath=subpath, filename='memory.failcnt')
             with open(usage_file) as f:
-                result['memory']['failures'] = int(f.readline().strip())
-            usage_file = self.group_path('memory', subpath=subpath, filename='memory.stat')
-            with open(usage_file) as f:
-                stats = dict([line.strip().split() for line in f.readlines()])
-                result['memory']['limit'] = int(stats['hierarchical_memory_limit'])
+                result.memory.failures = int(f.readline().strip())
         if 'cpuacct' in self.groups:
             user_hz = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
-            result['cpus'] = dict()
             usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.usage')
             with open(usage_file) as f:
-                result['cpus']['usage'] = 10**-9*float(f.readline().strip())
+                total = 10**-9*float(f.readline().strip())
             usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.stat')
             with open(usage_file) as f:
                 stats = dict([line.strip().split() for line in f.readlines()])
-            result['cpus']['user'] = float(stats['user'])/user_hz
-            result['cpus']['system'] = float(stats['system'])/user_hz
+            result.cpus['total'] = KolejkaStats.CpusStats(usage = total, user = float(stats['user'])/user_hz, system = float(stats['system'])/user_hz)
             usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.usage_percpu')
             with open(usage_file) as f:
                 cpusplit = f.readline().strip().split()
             for i,c in zip(range(len(cpusplit)), cpusplit):
-                result['cpus'][str(i)] = 10**-9*float(c)
-            result['cpus']['limit'] = len(self.limited_cpus(subpath=subpath))
+                result.cpus[i] = KolejkaStats.CpusStats(usage = 10**-9*float(c))
         if 'pids' in self.groups:
-            result['pids'] = dict()
             usage_file = self.group_path('pids', subpath=subpath, filename='pids.current')
             with open(usage_file) as f:
-                result['pids']['usage'] = int(f.readline().strip())
+                result.pids.usage = int(f.readline().strip())
             usage_file = self.group_path('pids', subpath=subpath, filename='pids.events')
             with open(usage_file) as f:
                 stats = dict([line.strip().split() for line in f.readlines()])
-                result['pids']['failures'] = int(stats['max'])
-            result['pids']['limit'] = self.limited_pids(subpath=subpath)
+                result.pids.failures = int(stats['max'])
         return result
 
     def kill(self, subpath):
@@ -346,29 +337,15 @@ class SessionRegistry:
             self.sessions[session_id] = Session(self, session_id, pid)
         return self.sessions[session_id].attach(subpath=subpath, pid=pid);
 
-    def limit(self, session_id, subpath='/', pids=None, memory=None, cpus=None, cpu_offset=0):
+    def limits(self, session_id, subpath='/', limits=KolejkaLimits(), cpu_offset=0):
         assert session_id in self.sessions
-        return self.sessions[session_id].limit(subpath=subpath, pids=pids, memory=memory, cpus=cpus, cpu_offset=cpu_offset)
+        return self.sessions[session_id].limits(subpath=subpath, limits=limits, cpu_offset=cpu_offset)
 
     def stats(self, session_id, subpath='/'):
         if session_id in self.sessions:
             return self.sessions[session_id].stats(subpath=subpath)
         else:
-            result = dict()
-            result['memory'] = dict()
-            result['memory']['max_usage'] = 0
-            result['memory']['failures'] = 0
-            result['memory']['limit'] = -1
-            result['cpus'] = dict()
-            result['cpus']['usage'] = 0
-            result['cpus']['user'] = 0
-            result['cpus']['system'] = 0
-            result['cpus']['limit'] = -1
-            result['pids'] = dict()
-            result['pids']['usage'] = 0
-            result['pids']['failures'] = 0
-            result['pids']['limit'] = -1
-            return result
+            return KolejkaStats()
 
     def freeze(self, session_id, subpath='/'):
         assert session_id in self.sessions
@@ -446,8 +423,8 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             fun = self.cmd_attach
             if 'session_id' in params:
                 check_session = True
-        elif path == 'limit':
-            fun = self.cmd_limit
+        elif path == 'limits':
+            fun = self.cmd_limits
             check_session = True
         elif path == 'stats':
             if 'session_id' not in params:
@@ -506,16 +483,9 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             self.session_id = params.get('session_id', None)
             self.secret = params.get('secret', None)
             self.subpath = params.get('group', '/')
-            self.memory = params.get('memory', None)
-            if self.memory is not None:
-                self.memory = parse_memory(self.memory)
-            self.cpus = params.get('cpus', None)
-            if self.cpus is not None:
-                self.cpus = int(self.cpus)
+            self.limits = KolejkaLimits()
+            self.limits.load(params.get('limits', {}))
             self.cpu_offset = int(params.get('cpu_offset', 0))
-            self.pids = params.get('pids', None)
-            if self.pids is not None:
-                self.pids = int(self.pids)
 
     def cmd_create(self, params):
         result = dict()
@@ -542,20 +512,18 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         result['status'] = 'ok'
         return result
 
-    def cmd_limit(self, params):
+    def cmd_limits(self, params):
         result = dict()
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.limit(sparams.session_id, sparams.subpath,
-                pids = sparams.pids,
-                memory = sparams.memory,
-                cpus = sparams.cpus,
+        self.session_registry.limits(sparams.session_id, sparams.subpath,
+                limits = sparams.limits,
                 cpu_offset = sparams.cpu_offset)
         result['status'] = 'ok'
         return result
 
     def cmd_stats(self, params):
         sparams = ObserverHandler.std_params(params)
-        result = self.session_registry.stats(sparams.session_id, sparams.subpath)
+        result = self.session_registry.stats(sparams.session_id, sparams.subpath).dump()
         result['status'] = 'ok'
         return result
 

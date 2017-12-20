@@ -18,15 +18,9 @@ def stage2(task_path, result_path):
 
     observer = KolejkaObserverClient()
     print(observer.post('attach'))
-    limits = dict()
-    if task.cpus is not None:
-        limits['cpus'] = task.cpus
-    if task.memory is not None:
-        limits['memory'] = task.memory
-    if task.pids is not None:
-        limits['pids'] = task.pids
-    #TODO:cpu_offset
-    print(observer.post('limit', limits ))
+    query = dict()
+    query['limits'] = task.limits.dump()
+    print(observer.post('limits', query ))
 
     with tempfile.TemporaryDirectory(dir='.') as jailed_path:
         stdin_path = '/dev/null'
@@ -67,7 +61,7 @@ def stage2(task_path, result_path):
             shutil.move(stderr_path, stderr_new_path)
         assert os.path.isdir(result.path)
         result.id = task.id
-        result.stats = observer.post('stats')
+        result.stats.load(observer.post('stats'))
         observer.post('close')
         result.time = (stop_time - start_time).total_seconds()
         result.result = returncode
@@ -76,18 +70,31 @@ def stage2(task_path, result_path):
                 abspath = os.path.join(dirpath, filename)
                 if abspath.startswith(result.path+'/'):
                     relpath = abspath[len(result.path)+1:]
-                    result.add_file(relpath)
+                    result.files.add(relpath)
         if task.stdout is not None:
             result.stdout = task.stdout
         if task.stderr is not None:
             result.stderr = task.stderr
         result.commit()
 
-    for dirpath, dirnames, filenames in os.walk('/opt/kolejka'):
+    stat = os.stat(result_path)
+    for dirpath, dirnames, filenames in os.walk(result_path):
         for name in dirnames + filenames:
             abspath = os.path.join(dirpath, name)
             try:
-                os.chmod(abspath, 0o777)
+                os.chown(abspath, stat.st_uid, stat.st_gid)
+            except:
+                pass
+        for name in dirnames:
+            abspath = os.path.join(dirpath, name)
+            try:
+                os.chmod(abspath, 0o750)
+            except:
+                pass
+        for name in filenames:
+            abspath = os.path.join(dirpath, name)
+            try:
+                os.chmod(abspath, 0o640)
             except:
                 pass
 

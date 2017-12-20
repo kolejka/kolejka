@@ -4,47 +4,70 @@ import json
 import os
 
 from .settings import TASK_SPEC, RESULT_SPEC
-from .parse import parse_time, parse_memory
+from .parse import parse_time, parse_memory, parse_int, parse_float, parse_str
 from .parse import unparse_time, unparse_memory
+from .parse import json_dict_load
+from .limits import KolejkaLimits, KolejkaStats
 
-class KolejkaFile:
-    def __init__(self, path=None, reference=None):
-        assert path is not None or reference is not None
-        self.path = path
-        self.reference = reference
+class KolejkaFiles:
+    class File:
+        def __init__(self, spec):
+            self.load(spec)
 
-    @property
-    def is_local(self):
-        return self.path is not None
+        def load(self, data):
+            self.name = data.split(':@')[0]
+            self.path = None
+            self.reference = None
+            if ':' in data:
+                self.path = data.split(':')[1].split(':@')[0]
+            elif '@' in data:
+                self.reference = data.split('@')[1].split(':@')[0]
+            else:
+                self.path = self.name
 
-    def is_contained(self, path):
-        if self.path is not None:
-            file_path = os.path.realpath(os.path.join(path, self.path))
-            return file_path.startswith(os.path.realpath(path)+'/')
-        return True
+        def dump(self):
+            res = self.name
+            if self.path is not None:
+                if self.path != self.name:
+                    res += ':' + self.path
+            elif self.reference is not None:
+                res += '@' + self.reference
+            return res
 
-    def open(self, mode):
-        if self.path:
-            return open(self.path, mode)
+        def is_local(self):
+            return self.path is not None
 
-class FileContainer:
-    def __init__(self, path, spec_path):
-        assert os.path.isdir(path)
-        self.path = path
-        self.spec = dict()
-        self.spec_path = os.path.join(path, spec_path)
-        if os.path.exists(self.spec_path):
-            assert os.path.isfile(self.spec_path)
-            with open(self.spec_path) as spec_file:
-                self.spec = json.load(spec_file)
+        def is_contained(self, path):
+            if self.path is not None:
+                file_path = os.path.realpath(os.path.join(path, self.path))
+                return file_path.startswith(os.path.realpath(path)+'/')
+            return True
+
+        def open(self, path=None, mode='rb'):
+            if self.path:
+                return open(os.path.join(path or os.getcwd(), self.path), mode)
+
+    def __init__(self, path=None, data={}):
+        self.path = path or os.getcwd()
         self.files = dict()
-        for file_spec in self.spec.get('files', list()):
-            self.add_file(file_spec)
+        assert os.path.isdir(self.path)
+        self.load(data)
+
+    def load(self, data):
+        args = json_dict_load(data)
+        for arg in args:
+            self.add(arg)
+
+    def dump(self):
+        res = list()
+        for k, f in self.files.items():
+            res.append(f.dump())
+        return res
 
     @property
     def is_local(self):
         for f in self.files:
-            if not f.is_local:
+            if not f.is_local():
                 return False
         return True
 
@@ -55,248 +78,114 @@ class FileContainer:
                 return False
         return True
 
-    def add_file(self, file_spec):
-        file_path = file_spec.split(':@')[0]
-        real_path = file_path
-        file_reference = None
-        if '@' in file_spec:
-            file_reference = file_spec.split('@')[1].split(':@')[0]
-        if ':' in file_spec:
-            real_path = file_spec.slit(':')[1].slit(':@')[0]
-        self.files[file_path] = KolejkaFile(path=real_path, reference=file_reference)
+    def items(self):
+        return self.files.items()
 
-    def del_file(self, file_spec):
-        file_path = file_spec.split(':@')[0]
-        if file_path in self.files:
-            del self.files[file_path]
+    def add(self, spec):
+        f = KolejkaFiles.File(spec)
+        self.files[f.name] = f
 
-    def commit_files(self):
-        self.spec['files'] = list()
-        for k, f in self.files.items():
-            if f.is_local:
-                if f.is_contained(self.path):
-                    self.spec['files'].append(k)
-                else:
-                    self.spec['files'].append(k+':'+f.path)
-            else:
-                self.spec['files'].append(k+'@'+f.reference)
+    def remove(self, spec):
+        f = KolejkaFiles.File(spec)
+        if f.name in self.files:
+            del self.files[f.name]
 
+class KolejkaTask():
+    def __init__(self, path, **kwargs):
+        self.path = path
+        data = {}
+        if os.path.exists(self.spec_path):
+            with open(self.spec_path, 'r') as spec_file:
+                data = json.load(spec_file)
+        self.load(data, **kwargs)
+
+    @property
+    def spec_path(self):
+        return os.path.join(self.path, TASK_SPEC)
+
+    def load(self, data, **kwargs):
+        args = json_dict_load(data)
+        args.update(kwargs)
+        self.id = parse_str(args.get('id', None))
+        self.image = parse_str(args.get('image', None))
+        self.limits = KolejkaLimits()
+        self.limits.load(args.get('limits', {}))
+        self.environment = dict()
+        for k, v in args.get('environment', {}).items():
+            self.environment[str(k)] = str(v)
+        self.args = [ str(k) for k in args.get('args', []) ]
+        self.stdin = parse_str(args.get('stdin', None))
+        self.stdout = parse_str(args.get('stdout', None))
+        self.stderr = parse_str(args.get('stderr', None))
+        self.files = KolejkaFiles(self.path)
+        self.files.load(args.get('files', []))
+
+    def dump(self):
+        res = dict()
+        if self.id is not None:
+            res['id'] = self.id
+        if self.image is not None:
+            res['image'] = self.image
+        res['limits'] = self.limits.dump()
+        res['environment'] = copy.copy(self.environment)
+        res['args'] = copy.copy(self.args)
+        if self.stdin is not None:
+            res['stdin'] = self.stdin
+        if self.stdout is not None:
+            res['stdout'] = self.stdout
+        if self.stderr is not None:
+            res['stderr'] = self.stderr
+        res['files'] = self.files.dump()
+        return res
+    
     def commit(self):
-        self.commit_files()
+        os.makedirs(os.path.dirname(self.spec_path), exist_ok=True)
         with open(self.spec_path, 'w') as spec_file:
-            json.dump(self.spec, spec_file, sort_keys=True, indent=2, ensure_ascii=False)
+            json.dump(self.dump(), spec_file, sort_keys=True, indent=2, ensure_ascii=False)
 
-class KolejkaTask(FileContainer):
-    def __init__(self, path):
-        super().__init__(path, TASK_SPEC)
-
-    @property
-    def id(self):
-        if 'id' in self.spec:
-            return str(self.spec['id'])
-    @id.setter
-    def id(self, val):
-        if val is None:
-            if 'id' in self.spec:
-                del self.spec['id']
-        else:
-            self.spec['id'] = str(val)
+class KolejkaResult():
+    def __init__(self, path, **kwargs):
+        self.path = path
+        data = {}
+        if os.path.exists(self.spec_path):
+            with open(self.spec_path, 'r') as spec_file:
+                data = json.load(spec_file)
+        self.load(data, **kwargs)
 
     @property
-    def image(self):
-        if 'image' in self.spec:
-            return str(self.spec['image'])
-    @image.setter
-    def image(self, val):
-        if val is None:
-            if 'image' in self.spec:
-                del self.spec['image']
-        else:
-            self.spec['image'] = str(val)
+    def spec_path(self):
+        return os.path.join(self.path, RESULT_SPEC)
 
-    @property
-    def memory(self):
-        if 'memory' in self.spec:
-            return parse_memory(self.spec['memory'])
-    @memory.setter
-    def memory(self, val):
-        if val is None:
-            if 'memory' in self.spec:
-                del self.spec['memory']
-        else:
-            self.spec['memory'] = unparse_memory(val)
+    def load(self, data, **kwargs):
+        args = json_dict_load(data)
+        args.update(kwargs)
+        self.id = parse_str(args.get('id', None))
+        self.limits = KolejkaLimits()
+        self.limits.load(args.get('limits', {}))
+        self.stats = KolejkaStats()
+        self.stats.load(args.get('stats', {}))
+        self.result = parse_int(args.get('result', None))
+        self.stdout = parse_str(args.get('stdout', None))
+        self.stderr = parse_str(args.get('stderr', None))
+        self.files = KolejkaFiles(self.path)
+        self.files.load(args.get('files', []))
 
-    @property
-    def cpus(self):
-        if 'cpus' in self.spec:
-            return int(self.spec['cpus'])
-    @cpus.setter
-    def cpus(self, val):
-        if val is None:
-            if 'cpus' in self.spec:
-                del self.spec['cpus']
-        else:
-            self.spec['cpus'] = int(val)
-
-    @property
-    def time(self):
-        if 'time' in self.spec:
-            return parse_time(self.spec['time'])
-    @time.setter
-    def time(self, val):
-        if val is None:
-            if 'time' in self.spec:
-                del self.spec['time']
-        else:
-            self.spec['time'] = unparse_time(val)
-
-    @property
-    def pids(self):
-        if 'pids' in self.spec:
-            return int(self.spec['pids'])
-    @pids.setter
-    def pids(self, val):
-        if val is None:
-            if 'pids' in self.spec:
-                del self.spec['pids']
-        else:
-            self.spec['pids'] = int(val)
-
-    @property
-    def environment(self):
-        env = dict()
-        if 'environment' in self.spec:
-            for k, v in self.spec['environment'].items():
-                env[str(k)] = str(v)
-        return env
-    @environment.setter
-    def environment(self, val):
-        if val is None:
-            if 'environment' in self.spec:
-                del self.spec['environment']
-        else:
-            self.spec['environment'] = dict([ (str(k), str(v)) for (k, v) in val.items() ])
-
-    @property
-    def args(self):
-        if 'args' in self.spec:
-            return [ str(s) for s in self.spec['args'] ]
-    @args.setter
-    def args(self, val):
-        if val is None:
-            if 'args' in self.spec:
-                del self.spec['args']
-        else:
-            self.spec['args'] = [ str(s) for s in val ]
-
-    @property
-    def stdin(self):
-        if 'stdin' in self.spec:
-            return str(self.spec['stdin'])
-    @stdin.setter
-    def stdin(self, val):
-        if val is None:
-            if 'stdin' in self.spec:
-                del self.spec['stdin']
-        else:
-            self.spec['stdin'] = str(val)
-
-    @property
-    def stdout(self):
-        if 'stdout' in self.spec:
-            return str(self.spec['stdout'])
-    @stdout.setter
-    def stdout(self, val):
-        if val is None:
-            if 'stdout' in self.spec:
-                del self.spec['stdout']
-        else:
-            self.spec['stdout'] = str(val)
-
-    @property
-    def stderr(self):
-        if 'stderr' in self.spec:
-            return str(self.spec['stderr'])
-    @stderr.setter
-    def stderr(self,val):
-        if val is None:
-            if 'stderr' in self.spec:
-                del self.spec['stderr']
-        else:
-            self.spec['stderr'] = str(val)
-
-class KolejkaResult(FileContainer):
-    def __init__(self, path):
-        super().__init__(path, RESULT_SPEC)
-
-    @property
-    def id(self):
-        if 'id' in self.spec:
-            return str(self.spec['id'])
-    @id.setter
-    def id(self, val):
-        if val is None:
-            if 'id' in self.spec:
-                del self.spec['id']
-        else:
-            self.spec['id'] = str(val)
-
-    @property
-    def time(self):
-        if 'time' in self.spec:
-            return parse_time(self.spec['time'])
-    @time.setter
-    def time(self, val):
-        if val is None:
-            if 'time' in self.spec:
-                del self.spec['time']
-        else:
-            self.spec['time'] = unparse_time(val)
-
-    @property
-    def result(self):
-        if 'result' in self.spec:
-            return int(self.spec['result'])
-    @result.setter
-    def result(self, val):
-        if val is None:
-            if 'result' in self.spec:
-                del self.spec['result']
-        else:
-            self.spec['result'] = int(val)
-
-    @property
-    def stats(self):
-        if 'stats' in self.spec:
-            return self.spec['stats']
-    @stats.setter
-    def stats(self, val):
-        if val is None:
-            if 'stats' in self.spec:
-                del self.spec['stats']
-        else:
-            self.spec['stats'] = val
-
-    @property
-    def stdout(self):
-        if 'stdout' in self.spec:
-            return str(self.spec['stdout'])
-    @stdout.setter
-    def stdout(self, val):
-        if val is None:
-            if 'stdout' in self.spec:
-                del self.spec['stdout']
-        else:
-            self.spec['stdout'] = str(val)
-
-    @property
-    def stderr(self):
-        if 'stderr' in self.spec:
-            return str(self.spec['stderr'])
-    @stderr.setter
-    def stderr(self,val):
-        if val is None:
-            if 'stderr' in self.spec:
-                del self.spec['stderr']
-        else:
-            self.spec['stderr'] = str(val)
+    def dump(self):
+        res = dict()
+        if self.id is not None:
+            res['id'] = self.id
+        res['limits'] = self.limits.dump()
+        res['stats'] = self.stats.dump()
+        if self.result is not None:
+            res['result'] = self.result
+        if self.stdout is not None:
+            res['stdout'] = self.stdout
+        if self.stderr is not None:
+            res['stderr'] = self.stderr
+        res['files'] = self.files.dump()
+        return res
+    
+    def commit(self):
+        os.makedirs(os.path.dirname(self.spec_path), exist_ok=True)
+        with open(self.spec_path, 'w') as spec_file:
+            json.dump(self.dump(), spec_file, sort_keys=True, indent=2, ensure_ascii=False)

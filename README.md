@@ -14,10 +14,12 @@ For example, the following task executes command `uname` in a standard ubuntu co
 {
     "image"  : "ubuntu:xenial",
     "args"   : [ "uname" ],
-    "memory" : "64M",
-    "cpus"   : "1",
-    "time"   : "1s",
-    "pids"   : "16",
+    "limits" : {
+        "memory" : "64M",
+        "cpus"   : "1",
+        "pids"   : "16",
+        "time"   : "1s"
+    },
     "stdout" : "stdout.txt"
 }
 ```
