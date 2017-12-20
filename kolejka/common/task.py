@@ -1,5 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+import copy
 import json
 import os
 
@@ -60,20 +61,20 @@ class KolejkaFiles:
 
     def dump(self):
         res = list()
-        for k, f in self.files.items():
+        for name, f in self.files.items():
             res.append(f.dump())
         return res
 
     @property
     def is_local(self):
-        for f in self.files:
+        for name, f in self.files.items():
             if not f.is_local():
                 return False
         return True
 
     @property
     def is_contained(self):
-        for f in self.files:
+        for name, f in self.files.items():
             if not f.is_contained(self.path):
                 return False
         return True
@@ -89,6 +90,9 @@ class KolejkaFiles:
         f = KolejkaFiles.File(spec)
         if f.name in self.files:
             del self.files[f.name]
+
+    def clear(self):
+        self.files = dict()
 
 class KolejkaTask():
     def __init__(self, path, **kwargs):

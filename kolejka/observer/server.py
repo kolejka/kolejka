@@ -14,9 +14,8 @@ import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
-from kolejka.common import settings
+from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_SERVERSTRING
 from kolejka.common import HTTPUnixServer
-from kolejka.common import parse_memory, parse_time
 from kolejka.common import KolejkaLimits, KolejkaStats
 
 class ControlGroupSystem:
@@ -29,7 +28,7 @@ class ControlGroupSystem:
                     cgroup, hierarchy, num_cgroups, enabled = re.split(r'\s+', line.strip())
                     available_groups.add(cgroup)
 
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             assert group in available_groups
 
         self.mount_points = dict()
@@ -43,7 +42,7 @@ class ControlGroupSystem:
                             logging.debug('Found \'%s\' control group at mount point \'%s\''%(group, path))
                             self.mount_points[group] = path
 
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             assert group in self.mount_points
 
     def mount_point(self, group):
@@ -142,9 +141,9 @@ class Session:
         self.creator_start_time = self.pid_start_time(self.creator_pid)
         process_groups = self.system.process_groups(pid)
         self.groups = dict()
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             self.groups[group] = self.session_group_path(group, path=process_groups[group])
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             if group == 'memory':
                 with open(os.path.join(os.path.dirname(self.groups[group]), 'memory.use_hierarchy')) as f:
                     use_hierarchy = bool(f.readline().strip())
@@ -180,9 +179,9 @@ class Session:
 
     def attach(self, subpath, pid):
         process_groups = self.system.process_groups(pid)
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             assert self.session_group_path(group, process_groups[group]).startswith(self.groups[group])
-        for group in settings.OBSERVER_CGROUPS:
+        for group in OBSERVER_CGROUPS:
             self.ensure_subpath(group, subpath)
             tasks_path = self.group_path(group, subpath=subpath, filename='tasks')
             assert os.path.isfile(tasks_path)
@@ -196,7 +195,7 @@ class Session:
             limit_file = self.group_path('memory', subpath=subpath, filename='memory.limit_in_bytes')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.memory))
-            logging.debug('Limited session %s [%s] memory to %s bytes'%(self.id, subpath, memory))
+            logging.debug('Limited session %s [%s] memory to %s bytes'%(self.id, subpath, limits.memory))
         if limits.cpus is not None:
             assert 'cpuset' in self.groups
             cpuset_cpus = self.available_cpus(subpath=subpath)
@@ -214,7 +213,7 @@ class Session:
             limit_file = self.group_path('pids', subpath=subpath, filename='pids.max')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.pids))
-            logging.debug('Limited session %s [%s] pids to %s'%(self.id, subpath, pids))
+            logging.debug('Limited session %s [%s] pids to %s'%(self.id, subpath, limits.pids))
 
     def freeze(self, subpath, freeze=True):
         assert 'freezer' in self.groups
@@ -295,7 +294,7 @@ class Session:
         except:
             pass
 
-        for group in sorted(settings.OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
+        for group in sorted(OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
             try:
                 src_path = self.group_path(group, subpath=subpath)
                 dst_path = os.path.normpath(os.path.join(src_path, '..', 'tasks'))
@@ -381,7 +380,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
     def session_registry(self):
         return self.server.session_registry
     def version_string(self):
-        return settings.OBSERVER_SERVERSTRING
+        return OBSERVER_SERVERSTRING
 
     def do_HEAD(self):
         self.session_registry.cleanup_finished()
@@ -578,11 +577,11 @@ def main():
     import os
     import setproctitle
     import traceback
-    from kolejka.common import settings
+    from kolejka.common.settings import OBSERVER_SOCKET
     from kolejka.observer import KolejkaObserverServer
 
     parser = argparse.ArgumentParser(description='KOLEJKA observer')
-    parser.add_argument("-s", "--socket", type=str, default=settings.OBSERVER_SOCKET, help='listen on socket')
+    parser.add_argument("-s", "--socket", type=str, default=OBSERVER_SOCKET, help='listen on socket')
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
     parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
     args = parser.parse_args()

@@ -1,6 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import datetime
+import logging
 import os
 import shutil
 import subprocess
@@ -17,10 +18,10 @@ def stage2(task_path, result_path):
     os.makedirs(result.path, exist_ok=True)
 
     observer = KolejkaObserverClient()
-    print(observer.post('attach'))
+    observer.post('attach')
     query = dict()
     query['limits'] = task.limits.dump()
-    print(observer.post('limits', query ))
+    observer.post('limits', query)
 
     with tempfile.TemporaryDirectory(dir='.') as jailed_path:
         stdin_path = '/dev/null'
@@ -61,9 +62,10 @@ def stage2(task_path, result_path):
             shutil.move(stderr_path, stderr_new_path)
         assert os.path.isdir(result.path)
         result.id = task.id
+        result.limits = task.limits
         result.stats.load(observer.post('stats'))
         observer.post('close')
-        result.time = (stop_time - start_time).total_seconds()
+        result.stats.time = stop_time - start_time
         result.result = returncode
         for dirpath, dirnames, filenames in os.walk(result.path):
             for filename in filenames:
@@ -97,4 +99,3 @@ def stage2(task_path, result_path):
                 os.chmod(abspath, 0o640)
             except:
                 pass
-

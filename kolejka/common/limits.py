@@ -144,15 +144,18 @@ class KolejkaStats:
         self.memory.load(args.get('memory', {}))
         self.pids = KolejkaStats.PidsStats()
         self.pids.load(args.get('pids', {}))
+        self.time = parse_time(args.get('time', None))
 
     def dump(self):
         res = dict()
         res['cpus'] = dict( [ (k, v.dump()) for k,v in self.cpus.items() ] )
         res['memory'] = self.memory.dump()
         res['pids'] = self.pids.dump()
+        res['time'] = unparse_time(self.time)
         return res
 
     def update(self, other):
         self.cpus.update(other.cpus)
         self.memory.update(other.memory)
         self.pids.update(other.pids)
+        self.time = max_none(self.time, other.time)
