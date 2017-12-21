@@ -1,7 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-from .parse import parse_time, parse_memory, parse_int
-from .parse import unparse_time, unparse_memory
+from .parse import parse_time, parse_memory, parse_int, parse_bool
+from .parse import unparse_time, unparse_memory, unparse_bool
 from .parse import json_dict_load
 
 def min_none(a, b):
@@ -26,43 +26,39 @@ class KolejkaLimits:
         args = json_dict_load(data)
         args.update(kwargs)
         self.cpus = parse_int(args.get('cpus', None))
+        self.cpus_offset = parse_int(args.get('cpus_offset', None))
         self.memory = parse_memory(args.get('memory', None))
+        self.network = parse_bool(args.get('network', None))
         self.pids = parse_int(args.get('pids', None))
+        self.storage = parse_memory(args.get('storage', None))
         self.time = parse_time(args.get('time', None))
 
     def dump(self):
         res = dict()
         if self.cpus is not None:
             res['cpus'] = self.cpus
+        if self.cpus_offset is not None:
+            res['cpus_offset'] = self.cpus_offset
         if self.memory is not None:
             res['memory'] = unparse_memory(self.memory)
+        if self.network is not None:
+            res['network'] = unparse_bool(self.network)
         if self.pids is not None:
             res['pids'] = self.pids
+        if self.storage is not None:
+            res['storage'] = unparse_memory(self.storage)
         if self.time is not None:
             res['time'] = unparse_time(self.time)
         return res
 
     def update(self, other):
         self.cpus = min_none(self.cpus, other.cpus)
+        self.cpus_offset = min_none(self.cpus_offset, other.cpus_offset)
         self.memory = min_none(self.memory, other.memory)
+        self.network = min_none(self.network, other.network)
         self.pids = min_none(self.pids, other.pids)
+        self.storage = min_none(self.storage, other.storage)
         self.time = min_none(self.time, other.time)
-
-    def __lt__(self, other):
-        return (
-            self.cpus < other.cpus and
-            self.memory < other.memory and
-            self.pids < other.pids and
-            self.time < other.time
-            )
-
-    def __le__(self, other):
-        return (
-            self.cpus <= other.cpus and
-            self.memory <= other.memory and
-            self.pids <= other.pids and
-            self.time <= other.time
-            )
 
 class KolejkaStats:
     class CpusStats:

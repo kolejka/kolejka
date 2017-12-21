@@ -17,47 +17,7 @@ import uuid
 from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_SERVERSTRING
 from kolejka.common import HTTPUnixServer
 from kolejka.common import KolejkaLimits, KolejkaStats
-
-class ControlGroupSystem:
-    def __init__(self):
-        assert os.path.exists('/proc/cgroups')
-        available_groups = set()
-        with open('/proc/cgroups') as cgroups_file:
-            for line in cgroups_file.readlines():
-                if not line.startswith('#'):
-                    cgroup, hierarchy, num_cgroups, enabled = re.split(r'\s+', line.strip())
-                    available_groups.add(cgroup)
-
-        for group in OBSERVER_CGROUPS:
-            assert group in available_groups
-
-        self.mount_points = dict()
-        with open('/proc/mounts') as mounts_file:
-            for line in mounts_file.readlines():
-                dev, path, fs, opts, _, _ = re.split(r'\s+', line.strip()) 
-                if fs == 'cgroup':
-                    groups = opts.split(',')
-                    for group in available_groups:
-                        if group in groups:
-                            logging.debug('Found \'%s\' control group at mount point \'%s\''%(group, path))
-                            self.mount_points[group] = path
-
-        for group in OBSERVER_CGROUPS:
-            assert group in self.mount_points
-
-    def mount_point(self, group):
-        assert group in self.mount_points
-        return self.mount_points[group]
-
-    def process_groups(self, pid):
-        cgroups_path = os.path.join('/proc', str(pid), 'cgroup')
-        result = dict()
-        with open(cgroups_path) as cgroups_file:
-            for line in cgroups_file.readlines():
-                num, groups, path, = re.split(r':', line.strip())
-                for group in re.split(r',', groups):
-                    result[group] = path
-        return result
+from kolejka.common import ControlGroupSystem
 
 class Session:
     @property
@@ -89,14 +49,7 @@ class Session:
                 with open(cpuset_path) as cpuset_file:
                     cpus = cpuset_file.readline().strip()
                 if cpus != '':
-                    cpuset=set()
-                    for cpu_range in cpus.split(','):
-                        cpu_range = cpu_range.split('-')
-                        if len(cpu_range) == 1:
-                            cpuset.add(cpu_range[0])
-                        else:
-                            for cpu in range(int(cpu_range[0]), int(cpu_range[1])+1):
-                                cpuset.add(cpu)
+                    cpuset = self.system.parse_cpuset(cpus)
                     return sorted(list(cpuset))
             path = os.path.dirname(path)
     def limited_cpus(self, subpath='/'):
@@ -189,7 +142,7 @@ class Session:
                 tasks_file.write(str(pid))
         logging.debug('Attached process %s to session %s [%s]'%(str(pid), self.id, subpath))
 
-    def limits(self, subpath, limits=KolejkaLimits(), cpu_offset=0):
+    def limits(self, subpath, limits=KolejkaLimits()):
         if limits.memory is not None:
             assert 'memory' in self.groups
             limit_file = self.group_path('memory', subpath=subpath, filename='memory.limit_in_bytes')
@@ -200,9 +153,10 @@ class Session:
             assert 'cpuset' in self.groups
             cpuset_cpus = self.available_cpus(subpath=subpath)
             logging.debug('Available cpus: %s', ','.join([str(c) for c in cpuset_cpus]))
-            if len(cpuset_cpus) < cpu_offset + limits.cpus:
-                cpu_offset = 0
-            if len(cpuset_cpus) > cpu_offset + limits.cpus:
+            cpus_offset = limits.cpus_offset or 0
+            if len(cpuset_cpus) < cpus_offset + limits.cpus:
+                cpus_offset = 0
+            if len(cpuset_cpus) > cpus_offset + limits.cpus:
                 cpuset_cpus = cpuset_cpus[0:limits.cpus]
             limit_file = self.group_path('cpuset', subpath=subpath, filename='cpuset.cpus')
             with open(limit_file, 'w') as f:
@@ -336,9 +290,9 @@ class SessionRegistry:
             self.sessions[session_id] = Session(self, session_id, pid)
         return self.sessions[session_id].attach(subpath=subpath, pid=pid);
 
-    def limits(self, session_id, subpath='/', limits=KolejkaLimits(), cpu_offset=0):
+    def limits(self, session_id, subpath='/', limits=KolejkaLimits()):
         assert session_id in self.sessions
-        return self.sessions[session_id].limits(subpath=subpath, limits=limits, cpu_offset=cpu_offset)
+        return self.sessions[session_id].limits(subpath=subpath, limits=limits)
 
     def stats(self, session_id, subpath='/'):
         if session_id in self.sessions:
@@ -484,7 +438,6 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             self.subpath = params.get('group', '/')
             self.limits = KolejkaLimits()
             self.limits.load(params.get('limits', {}))
-            self.cpu_offset = int(params.get('cpu_offset', 0))
 
     def cmd_create(self, params):
         result = dict()
@@ -514,9 +467,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
     def cmd_limits(self, params):
         result = dict()
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.limits(sparams.session_id, sparams.subpath,
-                limits = sparams.limits,
-                cpu_offset = sparams.cpu_offset)
+        self.session_registry.limits(sparams.session_id, sparams.subpath, limits = sparams.limits)
         result['status'] = 'ok'
         return result
 

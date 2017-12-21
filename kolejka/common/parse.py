@@ -68,3 +68,12 @@ def json_dict_load(data):
         return copy.copy(data)
     return json.load(data)
 
+def parse_bool(x):
+    if x is not None:
+        return str(x).lower().strip() in [ 'true', 'yes', '1' ]
+
+def unparse_bool(x):
+    if x is not None:
+        if x:
+            return 'true'
+        return 'false'

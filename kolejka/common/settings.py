@@ -13,3 +13,5 @@ RESULT_SPEC = 'kolejka_result.json'
 WORKER_HOSTNAME = 'kolejka'
 
 WORKER_REPOSITORY = 'kolejka.matinf.uj.edu.pl'
+
+WORKER_DIRECTORY = '/opt/kolejka'

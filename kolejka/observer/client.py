@@ -6,6 +6,7 @@ import logging
 
 from kolejka.common import settings
 from kolejka.common import HTTPUnixConnection
+from kolejka.common import KolejkaStats
 
 class KolejkaObserverClient:
     def __init__(self, socket_path=None, session=None, secret=None):
@@ -39,3 +40,17 @@ class KolejkaObserverClient:
         headers['Content-Type'] = self.content_type
         headers['Content-Length'] = len(body)
         return self.request('POST', path, headers, body)
+
+    def attach(self):
+        return self.post('attach')
+    def limits(self, limits):
+        return self.post('limits', { 'limits' : limits.dump() })
+    def stats(self):
+        ret = KolejkaStats()
+        ret.load(self.post('stats'))
+        return ret
+    def close(self):
+        self.post('close')
+        self.session = None
+        self.secret = None
+
