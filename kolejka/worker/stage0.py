@@ -1,6 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import copy
+import datetime
 import glob
 import logging
 import math
@@ -19,16 +20,17 @@ def silent_call(*args, **kwargs):
     kwargs['stdin'] = kwargs.get('stdin', subprocess.DEVNULL)
     kwargs['stdout'] = kwargs.get('stderr', subprocess.DEVNULL)
     kwargs['stderr'] = kwargs.get('stdout', subprocess.DEVNULL)
-    return subprocess.call(*args, **kwargs)
+    return subprocess.run(*args, **kwargs)
 
 def stage0(task_path, result_path, temp_path=None):
+    cgs = ControlGroupSystem()
     task = KolejkaTask(task_path)
     if task.id is None:
         task.id = uuid.uuid4().hex
     assert task.image is not None
     assert len(task.args) > 0
     assert task.files.is_local
-#TODO: sanitize limits (enforce some sensible max limits)
+#TODO: sanitize limits (enforce some sensible limits)
 
     docker_task = 'kolejka_task_{}'.format(task.id)
 
@@ -38,16 +40,18 @@ def stage0(task_path, result_path, temp_path=None):
     ]
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
-        os.makedirs(os.path.join(jailed_path, 'task'), exist_ok=True)
-        os.makedirs(os.path.join(jailed_path, 'result'), exist_ok=True)
-        os.makedirs(os.path.join(jailed_path, 'dist'), exist_ok=True)
+        jailed_task_path = os.path.join(jailed_path, 'task')
+        os.makedirs(jailed_task_path, exist_ok=True)
+        jailed_result_path = os.path.join(jailed_path, 'result')
+        os.makedirs(jailed_result_path, exist_ok=True)
+
         jailed = KolejkaTask(os.path.join(jailed_path, 'task'))
         jailed.load(task.dump())
         jailed.files.clear()
         volumes = list()
-        assert os.path.exists(OBSERVER_SOCKET)
-        volumes.append((OBSERVER_SOCKET, OBSERVER_SOCKET, 'rw'))
-        volumes.append((os.path.join(jailed_path, 'result'), os.path.join(WORKER_DIRECTORY, 'result'), 'rw'))
+        if os.path.exists(OBSERVER_SOCKET):
+            volumes.append((OBSERVER_SOCKET, OBSERVER_SOCKET, 'rw'))
+        volumes.append((jailed_result_path, os.path.join(WORKER_DIRECTORY, 'result'), 'rw'))
         for key, val in task.files.items():
             if key != TASK_SPEC:
                 volumes.append((os.path.join(task.path, val.path), os.path.join(WORKER_DIRECTORY, 'task', key), 'ro'))
@@ -60,22 +64,22 @@ def stage0(task_path, result_path, temp_path=None):
             if os.path.isfile(stage1):
                 volumes.append((stage1, os.path.join(WORKER_DIRECTORY, 'stage1.sh'), 'ro'))
                 break
-        for package in [ 'KolejkaCommon', 'KolejkaObserver', 'KolejkaWorker' ]:
-            for spath in [ os.path.join(os.path.dirname(__file__), '../../packages/dist') ]:
-                packs = glob.glob(os.path.join(spath, package+'*-py3-none-any.whl'))
-                if len(packs) > 0:
-                    pack = sorted(packs)[-1]
-                    volumes.append((pack, os.path.join(WORKER_DIRECTORY, 'dist', package+'-1-py3-none-any.whl'), 'ro'))
+        for spath in [ os.path.dirname(__file__) ]:
+            stage2 = os.path.join(spath, 'stage2.py')
+            if os.path.isfile(stage2):
+                volumes.append((stage2, os.path.join(WORKER_DIRECTORY, 'stage2.py'), 'ro'))
+                break
 
         docker_call  = [ 'docker', 'run' ]
+        docker_call += [ '--name', docker_task ]
+        docker_call += [ '--cgroup-parent', docker_task ] 
         docker_call += [ '--entrypoint', os.path.join(WORKER_DIRECTORY, 'stage1.sh') ]
         for key, val in task.environment.items():
             docker_call += [ '--env', '{}={}'.format(key, val) ]
         docker_call += [ '--hostname', WORKER_HOSTNAME ]
         docker_call += [ '--init' ]
         if task.limits.cpus is not None:
-            cgs = ControlGroupSystem()
-            docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpus(task.limits.cpus, task.limits.cpus_offset)]) ]
+            docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
         if task.limits.storage is not None:
@@ -85,7 +89,6 @@ def stage0(task_path, result_path, temp_path=None):
                 docker_call += [ '--network=none' ]
         docker_call += [ '--memory-swap', str(0) ]
         docker_call += [ '--cap-add', 'SYS_NICE' ]
-        docker_call += [ '--name', docker_task ]
         if task.limits.pids is not None:
             docker_call += [ '--pids-limit', str(task.limits.pids) ]
         if task.limits.time is not None:
@@ -94,14 +97,6 @@ def stage0(task_path, result_path, temp_path=None):
             docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
         docker_call += [ '--workdir', WORKER_DIRECTORY ]
         docker_call += [ WORKER_REPOSITORY.rstrip('/')+ '/' + task.image ]
-        docker_call += [ '--debug' ]
-
-        #for docker_clean in docker_cleanup:
-        #    silent_call(docker_clean)
-
-        subprocess.check_call(docker_call)
-
-        jailed = KolejkaResult(os.path.join(jailed_path, 'result'))
 
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
@@ -110,18 +105,23 @@ def stage0(task_path, result_path, temp_path=None):
             shutil.rmtree(result_path)
         os.makedirs(result_path, exist_ok=True)
         result = KolejkaResult(result_path)
-        result.load(jailed.dump())
         result.id = task.id
         result.limits = task.limits
         result.stdout = task.stdout
         result.stderr = task.stderr
-        result.files.clear()
-        for dirpath, dirnames, filenames in os.walk(jailed.path):
+
+        start_time = datetime.datetime.now()
+        result.result = subprocess.run(docker_call).returncode
+        stop_time = datetime.datetime.now()
+        result.stats = cgs.name_stats(docker_task)
+        result.stats.time = stop_time - start_time
+
+        for dirpath, dirnames, filenames in os.walk(jailed_result_path):
             for filename in filenames:
                 abspath = os.path.join(dirpath, filename)
                 realpath = os.path.realpath(abspath)
-                if realpath.startswith(os.path.realpath(jailed.path)+'/'):
-                    relpath = abspath[len(jailed.path)+1:]
+                if realpath.startswith(os.path.realpath(jailed_result_path)+'/'):
+                    relpath = abspath[len(jailed_result_path)+1:]
                     if relpath != RESULT_SPEC:
                         destpath = os.path.join(result.path, relpath)
                         os.makedirs(os.path.dirname(destpath), exist_ok=True)
@@ -130,9 +130,18 @@ def stage0(task_path, result_path, temp_path=None):
                         print('#### * *')
                         print('#  '+relpath)
                         print('#### * *')
+                        print()
                         with open(destpath, 'r') as file_file:
                             print(file_file.read())
         result.commit()
-        print(RESULT_SPEC)
+        print('#### * *')
+        print('#  '+RESULT_SPEC)
+        print('#### * *')
+        print()
         with open(result.spec_path, 'r') as file_file:
             print(file_file.read())
+
+        for docker_clean in docker_cleanup:
+            silent_call(docker_clean)
+
+        cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY

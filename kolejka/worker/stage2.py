@@ -1,57 +1,57 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import datetime
+import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 
-from kolejka.common import KolejkaTask, KolejkaResult
-from kolejka.observer.client import KolejkaObserverClient
+#THIS NEEDS TO BE THE SAME AS kolejka.common.settings.TASK_SPEC
+TASK_SPEC='kolejka_task.json'
 
 def stage2(task_path, result_path):
-    task = KolejkaTask(task_path)
-    result = KolejkaResult(result_path)
-    os.makedirs(result.path, exist_ok=True)
 
-    observer = KolejkaObserverClient()
-    observer.attach()
-    observer.limits(task.limits)
+    os.makedirs(result_path, exist_ok=True)
+
+    task = {}
+    task_spec_path = os.path.join(task_path, TASK_SPEC)
+    with open(task_spec_path) as task_spec_file:
+        task = json.load(task_spec_file)
+    task_stdin = task.get('stdin', None)
+    task_stdout = task.get('stdout', None)
+    task_stderr = task.get('stderr', None)
+    task_args = task.get('args', [ 'true' ])
 
     stdin_path = '/dev/null'
     stdout_path = '/dev/null'
     stderr_path = '/dev/null'
-    if task.stdin is not None:
-        stdin_path = os.path.join(task.path, task.stdin)
-    if task.stdout is not None:
-        stdout_path=os.path.join(result.path, task.stdout)
-    if task.stderr is not None:
-        stderr_path=os.path.join(result.path, task.stderr)
+    if task_stdin is not None:
+        stdin_path = os.path.join(task_path, task_stdin)
+    if task_stdout is not None:
+        stdout_path = os.path.join(result_path, task_stdout)
+    if task_stderr is not None:
+        if task_stderr != task_stdout:
+            stderr_path = os.path.join(result_path, task_stderr)
     with open(stdin_path, 'rb') as stdin_file:
         with open(stdout_path, 'wb') as stdout_file:
             with open(stderr_path, 'wb') as stderr_file:
-                start_time = datetime.datetime.now()
                 kwargs = dict()
-                if task.stdin is not None:
+                if task_stdin is not None:
                     kwargs['stdin'] = stdin_file
-                if task.stdout is not None:
+                if task_stdout is not None:
                     kwargs['stdout'] = stdout_file
-                if task.stderr is not None:
-                    kwargs['stderr'] = stderr_file
-                returncode = subprocess.call(
-                    args=task.args,
+                if task_stderr is not None:
+                    if task_stderr != task_stdout:
+                        kwargs['stderr'] = stderr_file
+                    else:
+                        kwargs['stderr'] = subprocess.STDOUT
+
+                result = subprocess.run(
+                    args=task_args,
+                    start_new_session=True,
                     **kwargs
                 )
-                stop_time = datetime.datetime.now()
-
-    result.stats = observer.stats()
-    observer.close()
-
-    result.stats.time = stop_time - start_time
-    result.result = returncode
-    result.commit()
 
     stat = os.stat(result_path)
     for dirpath, dirnames, filenames in os.walk(result_path):
@@ -73,3 +73,8 @@ def stage2(task_path, result_path):
                 os.chmod(abspath, 0o640)
             except:
                 pass
+
+    sys.exit(result.returncode)
+
+if __name__ == '__main__':
+    stage2(sys.argv[1], sys.argv[2])

@@ -41,7 +41,11 @@ class KolejkaObserverClient:
         headers['Content-Length'] = len(body)
         return self.request('POST', path, headers, body)
 
-    def attach(self):
+    def open(self):
+        return self.post('open')
+    def attach(self, session=None):
+        if session is not None:
+            self.session = session
         return self.post('attach')
     def limits(self, limits):
         return self.post('limits', { 'limits' : limits.dump() })

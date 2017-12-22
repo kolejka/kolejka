@@ -24,16 +24,17 @@ class Session:
     def system(self):
         return self.registry.control_group_system
 
-    def session_group_path(self, group, path='/', subpath='/'):
-        return os.path.abspath(os.path.join(self.system.mount_point(group), path.strip('/'), 'kolejka_observer_' + self.id, subpath.strip('/')))
+    @property
+    def group_name(self):
+        return 'kolejka_observer_' + self.id
 
-    def group_path(self, group, subpath='/', filename=''):
+    def group_path(self, group, filename=''):
         assert group in self.groups
-        return os.path.join(self.groups[group], subpath.strip('/'), filename.strip('/'))
+        return os.path.join(self.system.mount_point(group), self.groups[group].strip('/'), filename.strip('/')).rstrip('/')
 
-    def list_group(self, group, subpath='/'):
+    def list_group(self, group):
         result = set()
-        path = self.group_path(group, subpath=subpath)
+        path = self.group_path(group)
         for d, _, _ in os.walk(path):
             group_list_path = os.path.join(path, d, 'cgroup.procs')
             if os.path.exists(group_list_path):
@@ -52,10 +53,10 @@ class Session:
                     cpuset = self.system.parse_cpuset(cpus)
                     return sorted(list(cpuset))
             path = os.path.dirname(path)
-    def limited_cpus(self, subpath='/'):
-        return self.cpuset_cpus(self.group_path('cpuset', subpath=subpath))
-    def available_cpus(self, subpath='/'):
-        return self.cpuset_cpus(os.path.dirname(self.group_path('cpuset', subpath=subpath)))
+    def limited_cpus(self):
+        return self.cpuset_cpus(self.group_path('cpuset'))
+    def available_cpus(self):
+        return self.cpuset_cpus(os.path.dirname(self.group_path('cpuset')))
 
     def pid_start_time(self, pid):
         try:
@@ -63,12 +64,12 @@ class Session:
             with open(stat_path) as stat_file:
                 stats = stat_file.read()
             stats = re.sub(r'^[^)]*\) ', '', stats).split()
-            return int(stats[20])
+            return int(stats[19])
         except:
             pass
 
-    def limited_pids(self, subpath='/'):
-        path = self.group_path('pids', subpath=subpath)
+    def limited_pids(self):
+        path = self.group_path('pids')
         result = 2**16
         while path.startswith(self.system.mount_point('pids')):
             pids_path = os.path.join(path, 'pids.max')
@@ -92,93 +93,71 @@ class Session:
         self.id = session_id
         self.creator_pid = pid
         self.creator_start_time = self.pid_start_time(self.creator_pid)
-        process_groups = self.system.process_groups(pid)
+        pid_groups = self.system.pid_groups(pid)
         self.groups = dict()
         for group in OBSERVER_CGROUPS:
-            self.groups[group] = self.session_group_path(group, path=process_groups[group])
+            self.groups[group] = os.path.join(pid_groups[group], self.group_name)
         for group in OBSERVER_CGROUPS:
             if group == 'memory':
-                with open(os.path.join(os.path.dirname(self.groups[group]), 'memory.use_hierarchy')) as f:
+                with open(os.path.join(os.path.dirname(self.group_path(group)), 'memory.use_hierarchy')) as f:
                     use_hierarchy = bool(f.readline().strip())
                     assert use_hierarchy
-            os.makedirs(self.groups[group], exist_ok=True)
+            os.makedirs(self.group_path(group), exist_ok=True)
             if group == 'cpuset':
                 for inherit in ['cpuset.cpus', 'cpuset.mems']:
-                    with open(os.path.join(os.path.dirname(self.groups[group]), inherit)) as f:
-                        with open(os.path.join(self.groups[group], inherit), 'w') as t:
+                    with open(os.path.join(os.path.dirname(self.group_path(group)), inherit)) as f:
+                        with open(os.path.join(self.group_path(group), inherit), 'w') as t:
                             t.write(f.read())
         logging.debug('Created session %s with paths [%s] for pid %s'%(self.id, ','.join(self.groups.values()), self.creator_pid))
 
-    def ensure_subpath(self, group, subpath='/'):
-        root_path = self.groups[group]
-        result_path = os.path.normpath(os.path.join(root_path, subpath.strip('/')))
-        assert result_path.startswith(root_path)
-        subpath = result_path[len(root_path):].strip('/')
-        if len(subpath) > 0:
-            parent_path = root_path
-            for part in subpath.split('/'):
-                part_path = os.path.join(parent_path, part)
-                if not os.path.exists(part_path):
-                    if group == 'memory':
-                        with open(os.path.join(parent_path, 'memory.use_hierarchy'), 'w') as f:
-                            f.write('1')
-                    os.makedirs(part_path, exist_ok=True)
-                    if group == 'cpuset':
-                        for inherit in ['cpuset.cpus', 'cpuset.mems']:
-                            with open(os.path.join(os.path.dirname(self.groups[group]), inherit)) as f:
-                                with open(os.path.join(self.groups[group], inherit), 'w') as t:
-                                    t.write(f.read())
-                parent_path = part_path
-
-    def attach(self, subpath, pid):
-        process_groups = self.system.process_groups(pid)
+    def attach(self, pid):
+        pid_groups = self.system.pid_groups(pid)
         for group in OBSERVER_CGROUPS:
-            assert self.session_group_path(group, process_groups[group]).startswith(self.groups[group])
+            assert os.path.join(pid_groups[group], self.group_name) == self.groups[group]
         for group in OBSERVER_CGROUPS:
-            self.ensure_subpath(group, subpath)
-            tasks_path = self.group_path(group, subpath=subpath, filename='tasks')
+            tasks_path = self.group_path(group, filename='tasks')
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
                 tasks_file.write(str(pid))
-        logging.debug('Attached process %s to session %s [%s]'%(str(pid), self.id, subpath))
+        logging.debug('Attached process %s to session %s'%(str(pid), self.id))
 
-    def limits(self, subpath, limits=KolejkaLimits()):
+    def limits(self, limits=KolejkaLimits()):
         if limits.memory is not None:
             assert 'memory' in self.groups
-            limit_file = self.group_path('memory', subpath=subpath, filename='memory.limit_in_bytes')
+            limit_file = self.group_path('memory', filename='memory.limit_in_bytes')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.memory))
-            logging.debug('Limited session %s [%s] memory to %s bytes'%(self.id, subpath, limits.memory))
+            logging.debug('Limited session %s memory to %s bytes'%(self.id, limits.memory))
         if limits.cpus is not None:
             assert 'cpuset' in self.groups
-            cpuset_cpus = self.available_cpus(subpath=subpath)
+            cpuset_cpus = self.available_cpus()
             logging.debug('Available cpus: %s', ','.join([str(c) for c in cpuset_cpus]))
             cpus_offset = limits.cpus_offset or 0
             if len(cpuset_cpus) < cpus_offset + limits.cpus:
                 cpus_offset = 0
             if len(cpuset_cpus) > cpus_offset + limits.cpus:
                 cpuset_cpus = cpuset_cpus[0:limits.cpus]
-            limit_file = self.group_path('cpuset', subpath=subpath, filename='cpuset.cpus')
+            limit_file = self.group_path('cpuset', filename='cpuset.cpus')
             with open(limit_file, 'w') as f:
                 f.write(','.join([str(c) for c in cpuset_cpus]))
-            logging.debug('Limited session %s [%s] cpus to %s'%(self.id, subpath, ','.join([str(c) for c in cpuset_cpus])))
+            logging.debug('Limited session %s cpus to %s'%(self.id, ','.join([str(c) for c in cpuset_cpus])))
         if limits.pids is not None:
             assert 'pids' in self.groups
-            limit_file = self.group_path('pids', subpath=subpath, filename='pids.max')
+            limit_file = self.group_path('pids', filename='pids.max')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.pids))
-            logging.debug('Limited session %s [%s] pids to %s'%(self.id, subpath, limits.pids))
+            logging.debug('Limited session %s pids to %s'%(self.id, limits.pids))
 
-    def freeze(self, subpath, freeze=True):
+    def freeze(self, freeze=True):
         assert 'freezer' in self.groups
         if freeze:
             command = 'FROZEN'
         else:
             command = 'THAWED'
-        state_file = self.group_path('freezer', subpath=subpath, filename='freezer.state')
+        state_file = self.group_path('freezer', filename='freezer.state')
         with open(state_file, 'w') as f:
             f.write(command)
-        logging.debug('%s session %s [%s]'%(command, self.id, subpath))
+        logging.debug('%s session %s'%(command, self.id))
         if freeze:
             while True:
                 with open(state_file) as f:
@@ -186,85 +165,36 @@ class Session:
                         return
         #TODO: wait for FROZEN. Is this code good?
 
-    def freezing(self, subpath):
+    def freezing(self):
         assert 'freezer' in self.groups
-        state_file = self.group_path('freezer', subpath=subpath, filename='freezer.self_freezing')
+        state_file = self.group_path('freezer', filename='freezer.self_freezing')
         with open(state_file) as f:
             return f.readline().strip() == '1'
 
-    def stats(self, subpath):
-        result = KolejkaStats()
-        if 'memory' in self.groups:
-            usage_file = self.group_path('memory', subpath=subpath, filename='memory.usage_in_bytes')
-            with open(usage_file) as f:
-                result.memory.usage = int(f.readline().strip())
-            usage_file = self.group_path('memory', subpath=subpath, filename='memory.max_usage_in_bytes')
-            with open(usage_file) as f:
-                result.memory.max_usage = int(f.readline().strip())
-            usage_file = self.group_path('memory', subpath=subpath, filename='memory.failcnt')
-            with open(usage_file) as f:
-                result.memory.failures = int(f.readline().strip())
-        if 'cpuacct' in self.groups:
-            user_hz = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
-            usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.usage')
-            with open(usage_file) as f:
-                total = 10**-9*float(f.readline().strip())
-            usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.stat')
-            with open(usage_file) as f:
-                stats = dict([line.strip().split() for line in f.readlines()])
-            result.cpus['total'] = KolejkaStats.CpusStats(usage = total, user = float(stats['user'])/user_hz, system = float(stats['system'])/user_hz)
-            usage_file = self.group_path('cpuacct', subpath=subpath, filename='cpuacct.usage_percpu')
-            with open(usage_file) as f:
-                cpusplit = f.readline().strip().split()
-            for i,c in zip(range(len(cpusplit)), cpusplit):
-                result.cpus[i] = KolejkaStats.CpusStats(usage = 10**-9*float(c))
-        if 'pids' in self.groups:
-            usage_file = self.group_path('pids', subpath=subpath, filename='pids.current')
-            with open(usage_file) as f:
-                result.pids.usage = int(f.readline().strip())
-            usage_file = self.group_path('pids', subpath=subpath, filename='pids.events')
-            with open(usage_file) as f:
-                stats = dict([line.strip().split() for line in f.readlines()])
-                result.pids.failures = int(stats['max'])
-        return result
+    def stats(self):
+        return self.system.groups_stats(self.groups)
 
-    def kill(self, subpath):
-        state = self.freezing(subpath=subpath)
-        self.freeze(subpath=subpath, freeze=True)
+    def kill(self):
+        state = self.freezing()
+        self.freeze(freeze=True)
 
-        pids = self.list_group('pids', subpath=subpath)
+        pids = self.list_group('pids')
         for pid in pids:
             try:
                 os.kill(int(pid), signal.SIGKILL)
             except OSError:
                 pass
-        logging.debug('KILLED session %s [%s]'%(self.id, subpath))
+        logging.debug('KILLED session %s'%(self.id))
 
-        self.freeze(subpath=subpath, freeze=state)
+        self.freeze(freeze=state)
 
-    def close(self, subpath):
+    def close(self):
         try:
-            self.freeze(subpath=subpath, freeze=True)
+            self.freeze(freeze=True)
         except:
             pass
-
-        for group in sorted(OBSERVER_CGROUPS, key=lambda x: 1 if x == 'freezer' else 0):
-            try:
-                src_path = self.group_path(group, subpath=subpath)
-                dst_path = os.path.normpath(os.path.join(src_path, '..', 'tasks'))
-                for d, _, _ in os.walk(src_path, topdown=False):
-                    group_list_file = os.path.join(src_path, d, 'cgroup.procs')
-                    if os.path.exists(group_list_file):
-                        try:
-                            with open(dst_path, 'w') as t:
-                                with open(group_list_file) as f:
-                                    t.write(f.read())
-                        except:
-                            pass
-                    os.rmdir(os.path.join(src_path, d))
-            except:
-                pass
-        logging.debug('CLOSED session %s [%s]'%(self.id, subpath))
+        self.system.groups_close(self.groups)
+        logging.debug('CLOSED session %s'%(self.id))
             
 class SessionRegistry:
     def __init__(self):
@@ -281,44 +211,43 @@ class SessionRegistry:
             if session.finished():
                 self.close(session_id)
 
-    def create(self, session_id, pid):
+    def open(self, session_id, pid):
         if session_id not in self.sessions:
             self.sessions[session_id] = Session(self, session_id, pid)
 
-    def attach(self, session_id, subpath, pid):
+    def attach(self, session_id, pid):
         if session_id not in self.sessions:
             self.sessions[session_id] = Session(self, session_id, pid)
-        return self.sessions[session_id].attach(subpath=subpath, pid=pid);
+        return self.sessions[session_id].attach(pid=pid);
 
-    def limits(self, session_id, subpath='/', limits=KolejkaLimits()):
+    def limits(self, session_id, limits=KolejkaLimits()):
         assert session_id in self.sessions
-        return self.sessions[session_id].limits(subpath=subpath, limits=limits)
+        return self.sessions[session_id].limits(limits=limits)
 
-    def stats(self, session_id, subpath='/'):
+    def stats(self, session_id):
         if session_id in self.sessions:
-            return self.sessions[session_id].stats(subpath=subpath)
+            return self.sessions[session_id].stats()
         else:
             return KolejkaStats()
 
-    def freeze(self, session_id, subpath='/'):
+    def freeze(self, session_id):
         assert session_id in self.sessions
-        return self.sessions[session_id].freeze(subpath=subpath, freeze=True)
+        return self.sessions[session_id].freeze(freeze=True)
 
-    def thaw(self, session_id, subpath='/'):
+    def thaw(self, session_id):
         assert session_id in self.sessions
-        return self.sessions[session_id].freeze(subpath=subpath, freeze=False)
+        return self.sessions[session_id].freeze(freeze=False)
 
-    def kill(self, session_id, subpath='/'):
+    def kill(self, session_id):
         if session_id not in self.sessions:
             return
-        self.sessions[session_id].kill(subpath=subpath)
+        self.sessions[session_id].kill()
 
-    def close(self, session_id, subpath='/'):
+    def close(self, session_id):
         if session_id not in self.sessions:
             return
-        self.sessions[session_id].close(subpath=subpath)
-        if subpath=='/':
-            del self.sessions[session_id]
+        self.sessions[session_id].close()
+        del self.sessions[session_id]
 
 class ObserverServer(socketserver.ThreadingMixIn, HTTPUnixServer):
     def __enter__(self, *args, **kwargs):
@@ -370,12 +299,11 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         fun = self.cmd_default
         if path == '':
             fun = self.cmd_root
-        elif path == 'create':
-            fun = self.cmd_create
+        elif path == 'open':
+            fun = self.cmd_open
         elif path == 'attach':
             fun = self.cmd_attach
-            if 'session_id' in params:
-                check_session = True
+            check_session = True
         elif path == 'limits':
             fun = self.cmd_limits
             check_session = True
@@ -435,17 +363,16 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         def __init__(self, params):
             self.session_id = params.get('session_id', None)
             self.secret = params.get('secret', None)
-            self.subpath = params.get('group', '/')
             self.limits = KolejkaLimits()
             self.limits.load(params.get('limits', {}))
 
-    def cmd_create(self, params):
+    def cmd_open(self, params):
         result = dict()
         params['session_id'] = self.generate_session_id()
         params['secret'] = self.generate_secret(params['session_id'])
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.create(sparams.session_id, pid)
+        self.session_registry.open(sparams.session_id, pid)
         result['session_id'] = sparams.session_id
         result['secret'] = sparams.secret
         result['status'] = 'ok'
@@ -460,48 +387,48 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             result['secret'] = params['secret']
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.attach(sparams.session_id, sparams.subpath, pid)
+        self.session_registry.attach(sparams.session_id, pid)
         result['status'] = 'ok'
         return result
 
     def cmd_limits(self, params):
         result = dict()
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.limits(sparams.session_id, sparams.subpath, limits = sparams.limits)
+        self.session_registry.limits(sparams.session_id, limits = sparams.limits)
         result['status'] = 'ok'
         return result
 
     def cmd_stats(self, params):
         sparams = ObserverHandler.std_params(params)
-        result = self.session_registry.stats(sparams.session_id, sparams.subpath).dump()
+        result = self.session_registry.stats(sparams.session_id).dump()
         result['status'] = 'ok'
         return result
 
     def cmd_freeze(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.freeze(sparams.session_id, sparams.subpath)
+        self.session_registry.freeze(sparams.session_id)
         result['status'] = 'ok'
         return result
 
     def cmd_thaw(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.thaw(sparams.session_id, sparams.subpath)
+        self.session_registry.thaw(sparams.session_id)
         result['status'] = 'ok'
         return result
 
     def cmd_kill(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.kill(sparams.session_id, sparams.subpath)
+        self.session_registry.kill(sparams.session_id)
         result['status'] = 'ok'
         return result
 
     def cmd_close(self, params):
         result = dict() 
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.close(sparams.session_id, sparams.subpath)
+        self.session_registry.close(sparams.session_id)
         result['status'] = 'ok'
         return result
 
