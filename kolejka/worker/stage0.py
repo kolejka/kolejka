@@ -2,7 +2,9 @@
 
 import copy
 import datetime
+import dateutil.parser
 import glob
+import json
 import logging
 import math
 import os
@@ -10,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_REPOSITORY, WORKER_DIRECTORY
@@ -71,8 +74,9 @@ def stage0(task_path, result_path, temp_path=None):
                 break
 
         docker_call  = [ 'docker', 'run' ]
+        docker_call += [ '--detach' ]
         docker_call += [ '--name', docker_task ]
-        docker_call += [ '--cgroup-parent', docker_task ] 
+        #docker_call += [ '--cgroup-parent', docker_task ] 
         docker_call += [ '--entrypoint', os.path.join(WORKER_DIRECTORY, 'stage1.sh') ]
         for key, val in task.environment.items():
             docker_call += [ '--env', '{}={}'.format(key, val) ]
@@ -111,10 +115,32 @@ def stage0(task_path, result_path, temp_path=None):
         result.stderr = task.stderr
 
         start_time = datetime.datetime.now()
-        result.result = subprocess.run(docker_call).returncode
+        docker_run = subprocess.run(docker_call, stdout=subprocess.PIPE)
+        cid = str(docker_run.stdout, 'utf-8').strip()
+        logging.debug('Started container {}'.format(cid))
+
+        while True:
+            docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
+            state = json.loads(str(docker_state_run.stdout, 'utf-8'))
+            try:
+                result.stats.update(cgs.name_stats(cid))
+            except:
+                pass
+            time.sleep(0.1)
+            if not state['Running']:
+                result.result = state['ExitCode']
+                try:
+                    result.stats.time = dateutil.parser.parse(state['FinishedAt']) - dateutil.parser.parse(state['StartedAt'])
+                except:
+                    results.stats.time = None
+                break
+
         stop_time = datetime.datetime.now()
-        result.stats = cgs.name_stats(docker_task)
-        result.stats.time = stop_time - start_time
+        if result.stats.time is None:
+            result.stats.time = stop_time - start_time
+        result.stats.pids.usage = None
+        result.stats.memory.usage = None
+
 
         for dirpath, dirnames, filenames in os.walk(jailed_result_path):
             for filename in filenames:
@@ -144,4 +170,4 @@ def stage0(task_path, result_path, temp_path=None):
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
 
-        cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY
+        #cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY

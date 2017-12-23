@@ -4,19 +4,19 @@ from .parse import parse_time, parse_memory, parse_int, parse_bool
 from .parse import unparse_time, unparse_memory, unparse_bool
 from .parse import json_dict_load
 
-def min_none(a, b):
-    if a is not None and b is not None:
-        return min(a, b)
-    if a is not None:
-        return a
-    return b
+def min_none(*args):
+    args = [ a for a in args if a is not None ]
+    if len(args) > 1:
+        return min(*args)
+    if len(args) > 0:
+        return args[0]
 
-def max_none(a, b):
-    if a is not None and b is not None:
-        return max(a, b)
-    if a is not None:
-        return a
-    return b
+def max_none(*args):
+    args = [ a for a in args if a is not None ]
+    if len(args) > 1:
+        return max(*args)
+    if len(args) > 0:
+        return args[0]
 
 class KolejkaLimits:
     def __init__(self, **kwargs):
@@ -92,6 +92,7 @@ class KolejkaStats:
             args.update(kwargs)
             self.usage = parse_memory(args.get('usage', None))
             self.max_usage = parse_memory(args.get('max_usage', None))
+            self.max_usage = max_none(self.max_usage, self.usage)
             self.failures = parse_int(args.get('failures', None))
         def dump(self):
             res = dict()
@@ -103,8 +104,9 @@ class KolejkaStats:
                 res['failures'] = self.failures
             return res
         def update(self, other):
-            self.usage = max_none(self.usage, other.usage)
-            self.max_usage = max_none(self.max_usage, other.max_usage)
+            if other.usage is not None:
+                self.usage = other.usage
+            self.max_usage = max_none(self.max_usage, other.max_usage, self.usage)
             self.failures = max_none(self.failures, other.failures)
 
     class PidsStats:
@@ -114,16 +116,22 @@ class KolejkaStats:
             args = json_dict_load(data)
             args.update(kwargs)
             self.usage = parse_int(args.get('usage', None))
+            self.max_usage = parse_int(args.get('max_usage', None))
+            self.max_usage = max_none(self.max_usage, self.usage)
             self.failures = parse_int(args.get('failures', None))
         def dump(self):
             res = dict()
             if self.usage is not None:
                 res['usage'] = self.usage
+            if self.max_usage is not None:
+                res['max_usage'] = self.max_usage
             if self.failures is not None:
                 res['failures'] = self.failures
             return res
         def update(self, other):
-            self.usage = max_none(self.usage, other.usage)
+            if other.usage is not None:
+                self.usage = other.usage
+            self.max_usage = max_none(self.max_usage, other.max_usage, self.usage)
             self.failures = max_none(self.failures, other.failures)
 
     def __init__(self, **kwargs):
