@@ -49,31 +49,29 @@ def unparse_memory(x):
     if x is not None:
         return str(x)+'b'
 
+def parse_bool(x):
+    if x is not None:
+        return str(x).lower().strip() in [ 'true', 'yes', '1' ]
+
 def parse_int(x):
     if x is not None:
         return int(x)
 
-def parse_str(x):
-    if x is not None:
-        return str(x)
-
 def parse_float(x):
     if x is not None:
         return float(x)
+
+def parse_str(x):
+    if x is not None:
+        return str(x)
 
 def json_dict_load(data):
     if isinstance(data, dict):
         return copy.copy(data)
     if isinstance(data, list):
         return copy.copy(data)
+    if isinstance(data, str):
+        return json.loads(data)
+    if isinstance(data, bytes):
+        return json.loads(str(data, "utf-8"))
     return json.load(data)
-
-def parse_bool(x):
-    if x is not None:
-        return str(x).lower().strip() in [ 'true', 'yes', '1' ]
-
-def unparse_bool(x):
-    if x is not None:
-        if x:
-            return 'true'
-        return 'false'

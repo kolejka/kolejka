@@ -1,7 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 from .parse import parse_time, parse_memory, parse_int, parse_bool
-from .parse import unparse_time, unparse_memory, unparse_bool
+from .parse import unparse_time, unparse_memory
 from .parse import json_dict_load
 
 def min_none(*args):
@@ -42,7 +42,7 @@ class KolejkaLimits:
         if self.memory is not None:
             res['memory'] = unparse_memory(self.memory)
         if self.network is not None:
-            res['network'] = unparse_bool(self.network)
+            res['network'] = self.network
         if self.pids is not None:
             res['pids'] = self.pids
         if self.storage is not None:

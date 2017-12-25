@@ -25,17 +25,24 @@ def silent_call(*args, **kwargs):
     kwargs['stderr'] = kwargs.get('stdout', subprocess.DEVNULL)
     return subprocess.run(*args, **kwargs)
 
-def stage0(task_path, result_path, temp_path=None):
+def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     cgs = ControlGroupSystem()
     task = KolejkaTask(task_path)
-    if task.id is None:
+    if not task.id:
         task.id = uuid.uuid4().hex
-    assert task.image is not None
-    assert len(task.args) > 0
-    assert task.files.is_local
+        logging.warning('Assigned id {} to the task'.format(task.id))
+    if not task.image:
+        logging.error('Task does not define system image')
+        sys.exit(1)
+    if not task.args:
+        logging.error('Task does not define args')
+        sys.exit(1)
+    if not task.files.is_local:
+        logging.error('Task contains non-local files')
+        sys.exit(1)
 #TODO: sanitize limits (enforce some sensible limits)
 
-    docker_task = 'kolejka_task_{}'.format(task.id)
+    docker_task = 'kolejka_worker_{}'.format(task.id)
 
     docker_cleanup  = [
         [ 'docker', 'kill', docker_task ],
@@ -43,6 +50,8 @@ def stage0(task_path, result_path, temp_path=None):
     ]
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
+#TODO jailed_path size remains unlimited
+        logging.debug('Using {} as temporary directory'.format(jailed_path))
         jailed_task_path = os.path.join(jailed_path, 'task')
         os.makedirs(jailed_task_path, exist_ok=True)
         jailed_result_path = os.path.join(jailed_path, 'result')
@@ -57,11 +66,19 @@ def stage0(task_path, result_path, temp_path=None):
         volumes.append((jailed_result_path, os.path.join(WORKER_DIRECTORY, 'result'), 'rw'))
         for key, val in task.files.items():
             if key != TASK_SPEC:
-                volumes.append((os.path.join(task.path, val.path), os.path.join(WORKER_DIRECTORY, 'task', key), 'ro'))
+                src_path = os.path.join(task.path, val.path)
+                dst_path = os.path.join(jailed_path, 'task', key)
+                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                if consume_task_folder:
+                    shutil.move(src_path, dst_path)
+                else:
+                    shutil.copy(src_path, dst_path)
                 jailed.files.add(key)
         jailed.files.add(TASK_SPEC)
         jailed.commit()
-        volumes.append((jailed.spec_path, os.path.join(WORKER_DIRECTORY, 'task', TASK_SPEC), 'ro'))
+        volumes.append((jailed.path, os.path.join(WORKER_DIRECTORY, 'task'), 'rw'))
+        if consume_task_folder:
+            shutil.rmtree(task_path)
         for spath in [ os.path.dirname(__file__) ]:
             stage1 = os.path.join(spath, 'stage1.sh')
             if os.path.isfile(stage1):
@@ -76,7 +93,6 @@ def stage0(task_path, result_path, temp_path=None):
         docker_call  = [ 'docker', 'run' ]
         docker_call += [ '--detach' ]
         docker_call += [ '--name', docker_task ]
-        #docker_call += [ '--cgroup-parent', docker_task ] 
         docker_call += [ '--entrypoint', os.path.join(WORKER_DIRECTORY, 'stage1.sh') ]
         for key, val in task.environment.items():
             docker_call += [ '--env', '{}={}'.format(key, val) ]
@@ -101,6 +117,10 @@ def stage0(task_path, result_path, temp_path=None):
             docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
         docker_call += [ '--workdir', WORKER_DIRECTORY ]
         docker_call += [ WORKER_REPOSITORY.rstrip('/')+ '/' + task.image ]
+        docker_call += [ '--debug' ]
+        docker_call += [ '/opt/kolejka/task' ]
+        docker_call += [ '/opt/kolejka/result' ]
+        logging.debug('Docker call : {}'.format(docker_call))
 
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
@@ -134,6 +154,7 @@ def stage0(task_path, result_path, temp_path=None):
                 except:
                     results.stats.time = None
                 break
+        subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
 
         stop_time = datetime.datetime.now()
         if result.stats.time is None:
@@ -160,6 +181,7 @@ def stage0(task_path, result_path, temp_path=None):
                         with open(destpath, 'r') as file_file:
                             print(file_file.read())
         result.commit()
+        os.chmod(result.spec_path, 0o640)
         print('#### * *')
         print('#  '+RESULT_SPEC)
         print('#### * *')
@@ -171,3 +193,33 @@ def stage0(task_path, result_path, temp_path=None):
             silent_call(docker_clean)
 
         #cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY
+
+def execute(args):
+    stage0(args.task, args.result, temp_path=args.temp, consume_task_folder=args.consume)
+
+def config_parser(parser):
+    parser.add_argument("task", type=str, help='task folder')
+    parser.add_argument("result", type=str, help='result folder')
+    parser.add_argument("--temp", type=str, help='temp folder')
+    parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.set_defaults(execute=execute)
+
+def main():
+    import argparse
+    import logging
+
+    parser = argparse.ArgumentParser(description='KOLEJKA worker')
+    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
+    parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
+    config_parser(parser)
+    args = parser.parse_args()
+    level = logging.WARNING
+    if args.verbose:
+        level = logging.INFO
+    if args.debug:
+        level = logging.DEBUG
+    logging.basicConfig(level=level)
+    args.execute(args)
+
+if __name__ == '__main__':
+    main()
