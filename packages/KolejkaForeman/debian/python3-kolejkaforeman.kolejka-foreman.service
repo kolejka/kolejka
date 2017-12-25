@@ -1,0 +1,10 @@
+[Unit]
+Description=KolejkaForeman
+
+[Service]
+ExecStartPre=/bin/mkdir -p /var/run/kolejka/foreman
+ExecStart=/sbin/start-stop-daemon --start --quiet --pidfile /var/run/kolejka/foreman/pid --make-pidfile --exec /usr/bin/kolejka-foreman --
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -13,6 +13,7 @@ kolejka_foreman = {
         'description' : 'Kolejka Foreman',
         'packages' : sub_find_packages('kolejka.foreman'),
         'install_requires' : [
+            'setproctitle',
             'KolejkaCommon',
             'KolejkaWorker',
             'KolejkaClient',

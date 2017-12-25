@@ -15,6 +15,7 @@ kolejka_client = {
         'install_requires' : [
             'appdirs',
             'requests',
+            'setproctitle',
             'KolejkaCommon',
         ],
         'entry_points' : {

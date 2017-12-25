@@ -14,7 +14,7 @@ kolejka_server = {
         'packages' : sub_find_packages('kolejka.server'),
         'install_requires' : [
             'django',
-            'psycopg2',
+            'setproctitle',
             'KolejkaCommon',
         ],
         'entry_points' : {

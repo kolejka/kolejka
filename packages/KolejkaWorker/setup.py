@@ -13,9 +13,14 @@ kolejka_worker = {
         'description' : 'Kolejka Worker',
         'packages' : sub_find_packages('kolejka.worker'),
         'install_requires' : [
+            'python-dateutil',
+            'setproctitle',
             'KolejkaCommon',
             'KolejkaObserver',
         ],
+        'package_data' : {
+            'kolejka.worker' : [ '*.sh' ],
+        },
         'entry_points' : {
             'console_scripts' : [
                 'kolejka-worker = kolejka.worker:main',

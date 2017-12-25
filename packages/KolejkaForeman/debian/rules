@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
 
-export PYBUILD_NAME=kolejkaobserver
+export PYBUILD_NAME=kolejkaforeman
 %:
 	dh $@ --with systemd --with python3 --buildsystem=pybuild
 
 override_dh_installinit:
-	dh_installinit --name=kolejka-observer
+	dh_installinit --name=kolejka-foreman
 
 override_dh_systemd_enable:
-	dh_systemd_enable --name=kolejka-observer
+	dh_systemd_enable --name=kolejka-foreman
 
