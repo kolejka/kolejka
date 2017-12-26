@@ -2,13 +2,14 @@
 
 import datetime
 import os
+import shutil
 import uuid
 
 from django.conf import settings
 from django.db import models
 
 class Blob(models.Model):
-    hash        = models.CharField(max_length=64, unique=True, null=False)
+    key         = models.CharField(max_length=64, unique=True, null=False)
     active      = models.BooleanField(default=True, null=False)
     size        = models.BigIntegerField(null=False)
     time_create = models.DateTimeField(auto_now_add=True, null=False)
@@ -23,28 +24,28 @@ class Blob(models.Model):
         return os.path.join(dirname, filename)
 
     @staticmethod
-    def blob_store_path(hash):
-        subdir = 'blob/{}/{}/{}'.format(hash[0:2], hash[2:4], hash[4:6])
+    def blob_store_path(key):
+        subdir = 'blob/{}/{}/{}'.format(key[0:2], key[2:4], key[4:6])
         dirname = os.path.join(settings.BLOB_STORE_PATH, subdir)
         os.makedirs(dirname, exist_ok=True)
-        filename = hash[6:]
+        filename = key[6:]
         return os.path.join(dirname, filename)
 
     @staticmethod
-    def blob_inactive_path(hash):
-        subdir = 'inactive/{}/{}/{}'.format(hash[0:2], hash[2:4], hash[4:6])
+    def blob_inactive_path(key):
+        subdir = 'inactive/{}/{}/{}'.format(key[0:2], key[2:4], key[4:6])
         dirname = os.path.join(settings.BLOB_STORE_PATH, subdir)
         os.makedirs(dirname, exist_ok=True)
-        filename = hash[6:]
+        filename = key[6:]
         return os.path.join(dirname, filename)
 
     @property
     def store_path(self):
-        return Blob.blob_store_path(self.hash)
+        return Blob.blob_store_path(self.key)
 
     @property
     def inactive_path(self):
-        return Blob.blob_inactive_path(self.hash)
+        return Blob.blob_inactive_path(self.key)
 
     def open(self):
         if os.path.exists(self.store_path):
@@ -58,7 +59,7 @@ class Blob(models.Model):
         self.active = False
         self.save()
         if os.path.exists(self.store_path) and not os.path.exists(self.inactive_path):
-            os.rename(self.store_path, self.inactive_path)
+            shutil.move(self.store_path, self.inactive_path)
         if os.path.exists(self.inactive_path) and os.path.exists(self.store_path):
             os.unlink(self.store_path)
 
@@ -66,7 +67,7 @@ class Blob(models.Model):
         self.active = True
         self.save()
         if os.path.exists(self.inactive_path) and not os.path.exists(self.store_path):
-            os.rename(self.inactive_path, self.store_path)
+            shutil.move(self.inactive_path, self.store_path)
         if os.path.exists(self.store_path) and os.path.exists(self.inactive_path):
             os.unlink(self.inactive_path)
 

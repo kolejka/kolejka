@@ -6,6 +6,6 @@ from . import views
 
 app_name = 'task'
 urlpatterns = [
-    url(r'^(?P<key>[0-9a-f]*)/?$', views.task),
-    url(r'^(?P<key>[0-9a-f]*)/result/?$', views.result),
+    url(r'^task/(?P<key>[0-9a-f]*)/?$', views.task),
+    url(r'^result/(?P<key>[0-9a-f]*)/?$', views.result),
 ]

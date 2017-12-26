@@ -12,7 +12,7 @@ from . import models
 READ_BUF_SIZE = 8192
 
 def reference(request, key):
-    if request.method == 'PUT':
+    if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
         if not request.user.is_authenticated:
@@ -30,8 +30,8 @@ def reference(request, key):
                     file_size += len(buf)
                     tf.write(buf)
                     hasher.update(buf)
-            hash = hasher.hexdigest()
-            blob, created = models.Blob.objects.get_or_create(hash=hash, size=file_size)
+            key = hasher.hexdigest()
+            blob, created = models.Blob.objects.get_or_create(key=key, size=file_size)
             if not os.path.exists(blob.store_path):
                 os.rename(temp_file, blob.store_path)
             blob.activate()
@@ -43,7 +43,7 @@ def reference(request, key):
         response = dict()
         response['reference'] = {
             'key' : reference.key,
-            'hash' : reference.blob.hash,
+            'blob' : reference.blob.key,
             'size' : reference.blob.size,
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
@@ -53,11 +53,16 @@ def reference(request, key):
         reference = models.Reference.objects.get(key=key)
     except models.Reference.DoesNotExist:
         return HttpResponseNotFound()
-    if request.method == 'POST':
+    if not reference.public:
+        if not request.user.is_authenticated:
+            return HttpResponseForbidden()
+        if not request.user.is_superuser and request.user != reference.user:
+            return HttpResponseForbidden()
+    if request.method == 'PUT':
         response = dict()
         response['reference'] = {
             'key' : reference.key,
-            'hash' : reference.blob.hash,
+            'blob' : reference.blob.key,
             'size' : reference.blob.size,
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
@@ -70,22 +75,17 @@ def reference(request, key):
             return HttpResponseForbidden()
         reference.delete()
         return JsonResponse({'deleted' : True})
-    if request.method == 'GET':
-        if not reference.public:
-            if not request.user.is_authenticated:
-                return HttpResponseForbidden()
-            if not request.user.is_superuser and request.user != reference.user:
-                return HttpResponseForbidden()
+    if request.method == 'GET' or request.method == 'HEAD':
         reference.blob.save()
         reference.save()
         return StreamingHttpResponse(reference.blob.open(), content_type='application/octet-stream')
 
-def blob(request, hash):
+def blob(request, key):
     try:
-        blob = models.Blob.objects.get(hash=hash)
+        blob = models.Blob.objects.get(key = key)
     except models.Blob.DoesNotExist:
         return HttpResponseNotFound()
-    if request.method == 'PUT':
+    if request.method == 'POST':
         if not request.user.is_authenticated:
             return HttpResponseForbidden()
         reference = models.Reference(
@@ -97,7 +97,7 @@ def blob(request, hash):
         response = dict()
         response['reference'] = {
             'key' : reference.key,
-            'hash' : reference.blob.hash,
+            'blob' : reference.blob.key,
             'size' : reference.blob.size,
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
@@ -106,7 +106,7 @@ def blob(request, hash):
     if request.method == 'POST':
         response = dict()
         response['blob'] = {
-            'hash' : blob.hash,
+            'key' : blob.key,
             'size' : blob.size,
             'time_create' : blob.time_create,
             'time_access' : blob.time_access,
@@ -119,7 +119,7 @@ def blob(request, hash):
         blob.reference_set.all().delete()
         blob.delete()
         return JsonResponse({'deleted' : True})
-    if request.method == 'GET':
+    if request.method == 'GET' or request.method == 'HEAD':
         if not request.user.is_superuser:
             return HttpResponseForbidden()
         blob.save()

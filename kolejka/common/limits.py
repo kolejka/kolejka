@@ -155,7 +155,8 @@ class KolejkaStats:
         res['cpus'] = dict( [ (k, v.dump()) for k,v in self.cpus.items() ] )
         res['memory'] = self.memory.dump()
         res['pids'] = self.pids.dump()
-        res['time'] = unparse_time(self.time)
+        if self.time is not None:
+            res['time'] = unparse_time(self.time)
         return res
 
     def update(self, other):

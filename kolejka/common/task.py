@@ -16,22 +16,25 @@ class KolejkaFiles:
             self.load(spec)
 
         def load(self, data):
-            self.name = data.split(':@')[0]
+            self.name = data.split(':')[0].split('@')[0]
             self.path = None
             self.reference = None
+            simple = True
             if ':' in data:
-                self.path = data.split(':')[1].split(':@')[0]
-            elif '@' in data:
-                self.reference = data.split('@')[1].split(':@')[0]
-            else:
+                self.path = data.split(':')[1].split(':')[0].split('@')[0]
+                simple = False
+            if '@' in data:
+                self.reference = data.split('@')[1].split(':')[0].split('@')[0]
+                simple = False
+            if simple:
                 self.path = self.name
 
         def dump(self):
             res = self.name
             if self.path is not None:
-                if self.path != self.name:
+                if self.path != self.name or self.reference is not None:
                     res += ':' + self.path
-            elif self.reference is not None:
+            if self.reference is not None:
                 res += '@' + self.reference
             return res
 
@@ -45,13 +48,12 @@ class KolejkaFiles:
             return True
 
         def open(self, path=None, mode='rb'):
-            if self.path:
+            if self.path is not None:
                 return open(os.path.join(path or os.getcwd(), self.path), mode)
 
     def __init__(self, path=None, data={}):
-        self.path = path or os.getcwd()
+        self.path = path
         self.files = dict()
-        assert os.path.isdir(self.path)
         self.load(data)
 
     def load(self, data):
@@ -74,6 +76,8 @@ class KolejkaFiles:
 
     @property
     def is_contained(self):
+        if self.path is None:
+            return False
         for name, f in self.files.items():
             if not f.is_contained(self.path):
                 return False
@@ -98,14 +102,16 @@ class KolejkaTask():
     def __init__(self, path, **kwargs):
         self.path = path
         data = {}
-        if os.path.exists(self.spec_path):
-            with open(self.spec_path, 'r') as spec_file:
-                data = json.load(spec_file)
+        if self.path is not None:
+            if os.path.exists(self.spec_path):
+                with open(self.spec_path, 'r') as spec_file:
+                    data = json.load(spec_file)
         self.load(data, **kwargs)
 
     @property
     def spec_path(self):
-        return os.path.join(self.path, TASK_SPEC)
+        if self.path is not None:
+            return os.path.join(self.path, TASK_SPEC)
 
     def load(self, data, **kwargs):
         args = json_dict_load(data)
@@ -151,14 +157,16 @@ class KolejkaResult():
     def __init__(self, path, **kwargs):
         self.path = path
         data = {}
-        if os.path.exists(self.spec_path):
-            with open(self.spec_path, 'r') as spec_file:
-                data = json.load(spec_file)
+        if self.path is not None:
+            if os.path.exists(self.spec_path):
+                with open(self.spec_path, 'r') as spec_file:
+                    data = json.load(spec_file)
         self.load(data, **kwargs)
 
     @property
     def spec_path(self):
-        return os.path.join(self.path, RESULT_SPEC)
+        if self.path is not None:
+            return os.path.join(self.path, RESULT_SPEC)
 
     def load(self, data, **kwargs):
         args = json_dict_load(data)

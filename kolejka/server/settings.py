@@ -2,16 +2,15 @@
 
 import os
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASE_DIR = os.path.dirname(PROJECT_DIR)
+KOLEJKA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_DIR = os.path.dirname(KOLEJKA_DIR)
 
 SECRET_KEY = '__CHANGE_THIS_VALUE__'
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     'localhost',
-    'kolejka.matinf.uj.edu.pl',
 ]
 
 INSTALLED_APPS = (
@@ -44,7 +43,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(PROJECT_DIR, 'server/templates')
+            os.path.join(KOLEJKA_DIR, 'server/templates')
             ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -62,8 +61,8 @@ WSGI_APPLICATION = 'kolejka.server.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'kolejka',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(PROJECT_DIR, '../kolejka-server-database.sqlite3')
     }
 }
 
@@ -78,10 +77,10 @@ USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, '../kolejka-server-static')
+STATIC_ROOT = os.path.join(PROJECT_DIR, '../kolejka-server-static')
 
 BLOB_HASH_ALGORITHM = 'sha256'
-BLOB_STORE_PATH = os.path.join(BASE_DIR, '../kolejka-server-blobs')
+BLOB_STORE_PATH = os.path.join(PROJECT_DIR, '../kolejka-server-blobs')
 
 try:
     from kolejka.server.settings_local import *
