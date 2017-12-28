@@ -118,6 +118,8 @@ class KolejkaClient:
         return response.status_code == 200
 
     def task_put(self, task):
+        if not self.instance_session:
+            self.login() 
         for k,f in task.files.items():
             if not f.reference or not self.blob_check(blob_reference = f.reference):
                 f.reference = None
@@ -148,6 +150,8 @@ class KolejkaClient:
             return task
 
     def result_put(self, result):
+        if not self.instance_session:
+            self.login() 
         for k,f in result.files.items():
             if not f.reference or not self.blob_check(blob_reference = f.reference):
                 f.reference = None
@@ -176,3 +180,16 @@ class KolejkaClient:
                 f.path = k
             result.commit()
             return result
+
+    def dequeue(self, concurency, limits):
+        if not self.instance_session:
+            self.login() 
+        response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump()}))
+        if response.status_code == 200:
+            ts = response.json()['tasks']
+            tasks = list()
+            for t in ts:
+                tt = KolejkaTask(None)
+                tt.load(t)
+                tasks.append(tt)
+            return tasks

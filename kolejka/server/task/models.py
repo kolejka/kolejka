@@ -11,11 +11,13 @@ from kolejka.common import KolejkaTask, KolejkaResult
 from kolejka.server.blob.models import Reference
 
 class Task(models.Model):
-    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='kolejka_tasks')
     key         = models.CharField(max_length=64, unique=True, null=False)
     description = models.TextField()
     time_create = models.DateTimeField(auto_now_add=True, null=False)
     files       = models.ManyToManyField(Reference)
+    assignee    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='kolejka_assignments')
+    time_assign = models.DateTimeField(null=True)
 
     def task(self, task_path=None):
         task = KolejkaTask(task_path)
@@ -24,7 +26,7 @@ class Task(models.Model):
 
 class Result(models.Model):
     task        = models.OneToOneField(Task, on_delete=models.CASCADE)
-    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='kolejka_results')
     description = models.TextField()
     time_create = models.DateTimeField(auto_now_add=True, null=False)
     files       = models.ManyToManyField(Reference)

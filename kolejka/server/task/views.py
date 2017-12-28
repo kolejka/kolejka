@@ -4,7 +4,7 @@ import json
 import uuid
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseNotAllowed, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from kolejka.common import KolejkaTask, KolejkaResult
@@ -16,7 +16,7 @@ def task(request, key):
     if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         t = KolejkaTask(None)
         t.load(request.read())
@@ -44,9 +44,9 @@ def task(request, key):
         task = models.Task.objects.get(key=key)
     except models.Task.DoesNotExist:
         return HttpResponseNotFound()
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated():
         return HttpResponseForbidden()
-    if not request.user.is_superuser and request.user != task.user:
+    if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
         return HttpResponseForbidden()
     if request.method == 'PUT':
         response = dict()
@@ -59,18 +59,21 @@ def task(request, key):
         response = dict()
         response['task'] = task.task().dump()
         return JsonResponse(response)
+    return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'HEAD'])
 
 def result(request, key):
     if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         r = KolejkaResult(None)
         r.load(request.read())
         try:
             task = models.Task.objects.get(key = r.id)
         except models.Task.DoesNotExist:
+            return HttpResponseForbidden()
+        if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
             return HttpResponseForbidden()
         for k,f in r.files.items():
             if not f.reference:
@@ -97,9 +100,9 @@ def result(request, key):
         return HttpResponseNotFound()
     except models.Result.DoesNotExist:
         return HttpResponseNotFound()
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated():
         return HttpResponseForbidden()
-    if not request.user.is_superuser and request.user != task.user:
+    if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
         return HttpResponseForbidden()
     if request.method == 'PUT':
         response = dict()
@@ -112,3 +115,4 @@ def result(request, key):
         response = dict()
         response['result'] = result.result().dump()
         return JsonResponse(response)
+    return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'HEAD'])

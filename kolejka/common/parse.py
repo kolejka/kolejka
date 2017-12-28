@@ -1,5 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+import argparse
 import copy
 import datetime
 import json
@@ -28,6 +29,15 @@ def unparse_time(x) :
     if x is not None:
         return str(x.total_seconds())+'s'
 
+class TimeAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.type = datetime.timedelta
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, parse_time(values))
+
 def parse_memory(x):
     if x is not None:
         return int(round(parse_float_with_modifiers(x, {
@@ -48,6 +58,15 @@ def parse_memory(x):
 def unparse_memory(x):
     if x is not None:
         return str(x)+'b'
+
+class MemoryAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.type = int
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, parse_memory(values))
 
 def parse_bool(x):
     if x is not None:

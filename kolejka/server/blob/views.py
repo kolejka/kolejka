@@ -15,7 +15,7 @@ def reference(request, key):
     if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         hasher = hashlib.new(settings.BLOB_HASH_ALGORITHM)
         temp_file = models.Blob.blob_temp_path()
@@ -54,7 +54,7 @@ def reference(request, key):
     except models.Reference.DoesNotExist:
         return HttpResponseNotFound()
     if not reference.public:
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         if not request.user.is_superuser and request.user != reference.user:
             return HttpResponseForbidden()
@@ -69,7 +69,7 @@ def reference(request, key):
         }
         return JsonResponse(response)
     if request.method == 'DELETE':
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         if not request.user.is_superuser and request.user != reference.user:
             return HttpResponseForbidden()
@@ -86,7 +86,7 @@ def blob(request, key):
     except models.Blob.DoesNotExist:
         return HttpResponseNotFound()
     if request.method == 'POST':
-        if not request.user.is_authenticated:
+        if not request.user.is_authenticated():
             return HttpResponseForbidden()
         reference = models.Reference(
                 user = request.user,

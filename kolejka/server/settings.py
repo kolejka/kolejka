@@ -23,6 +23,7 @@ INSTALLED_APPS = (
 
     'kolejka.server.blob',
     'kolejka.server.task',
+    'kolejka.server.queue',
     'kolejka.server.main',
 )
 
