@@ -22,8 +22,13 @@ def dequeue(request):
 
         available_tasks = Task.objects.filter(assignee=None).order_by('time_create')[0:100]
         for t in available_tasks:
+            if len(tasks) > concurency:
+                break
+
             if True:
-                tasks.append(t.task().dump())
+                tt = t.task()
+
+                tasks.append(tt.dump())
                 t.assignee = request.user
                 t.save()
                 break

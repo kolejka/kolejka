@@ -7,21 +7,18 @@ import re
 import requests
 import sys
 
+from kolejka.common import client_config
 from kolejka.common import KolejkaTask, KolejkaResult
 
-from .autoconfig import autoconfig
-
 class KolejkaClient:
-    def __init__(self, settings=None, **kwargs):
-        if settings is None:
-            settings = autoconfig()
-        settings.update(kwargs)
+    def __init__(self):
+        self.config = client_config()
         self.session = requests.session()
-        self.settings = settings
-        self.settings.update(self.get('/settings/').json())
+        for k,v in self.get('/settings/').json().items():
+            self.config.__setattr__(k, v)
     @property
     def instance(self):
-        return self.settings['instance']
+        return self.config.server
     def instance_url(self, url):
         if not re.search(r'^https?://', url):
             url = self.instance.rstrip('/') + '/' + url.lstrip('/')
@@ -61,14 +58,14 @@ class KolejkaClient:
         return self.complex(self.session.delete, *args, **kwargs)
 
     def login(self, username=None, password=None):
-        username = username or self.settings['username']
-        password = password or self.settings['password']
+        username = username or self.config.username
+        password = password or self.config.password
         self.post('/accounts/login/', data={'username': username, 'password': password})
 
     def blob_put(self, blob_path):
         if not self.instance_session:
             self.login() 
-        hasher = hashlib.new(self.settings['blob_hash_algorithm'])
+        hasher = hashlib.new(self.config.blob_hash_algorithm)
         with open(blob_path, 'rb') as blob_file:
             while True:
                 buf = blob_file.read(8192)

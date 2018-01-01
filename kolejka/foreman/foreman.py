@@ -16,13 +16,14 @@ import tempfile
 import time
 import uuid
 
-from kolejka.common.settings import FOREMAN_INTERVAL, FOREMAN_CONCURENCY
-from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits, MemoryAction, TimeAction
+from kolejka.common import kolejka_config, foreman_config
+from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
+from kolejka.common import MemoryAction, TimeAction
 from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
 
-def foreman_single(client, task):
-    with tempfile.TemporaryDirectory() as jailed_path:
+def foreman_single(temp_path, client, task):
+    with tempfile.TemporaryDirectory(temp_path) as jailed_path:
         if task.limits.storage is not None:
             subprocess.run(['mount', '-t', 'tmpfs', '-o', 'size='+str(task.limits.storage), 'none', jailed_path], check=True)
         try:
@@ -44,12 +45,19 @@ def foreman_single(client, task):
             if task.limits.storage is not None:
                 subprocess.run(['umount', '-l', jailed_path])
 
-def foreman(sleep_time, concurency, limits):
+def foreman():
+    config = foreman_config()
+    limits = KolejkaLimits()
+    limits.cpus = config.cpus
+    limits.memory = config.memory
+    limits.pids = config.pids
+    limits.storage = config.storage
+    limits.time = config.time
     client = KolejkaClient()
     while True:
-        tasks = client.dequeue(concurency, limits)
+        tasks = client.dequeue(config.concurency, limits)
         if len(tasks) == 0:
-            time.sleep(sleep_time)
+            time.sleep(config.interval)
         else:
             while len(tasks) > 0:
                 resources = KolejkaLimits()
@@ -57,7 +65,7 @@ def foreman(sleep_time, concurency, limits):
                 processes = list()
                 cpus_offset = 0
                 for task in tasks:
-                    if len(processes) >= concurency:
+                    if len(processes) >= config.concurency:
                         break
                     task.limits.update(limits)
                     task.limits.cpus_offset = cpus_offset
@@ -71,7 +79,7 @@ def foreman(sleep_time, concurency, limits):
                     if resources.storage is not None and task.limits.storage > resources.storage:
                         ok = False
                     if ok:
-                        proc = Process(target=foreman_single, args=(client, task))
+                        proc = Process(target=foreman_single, args=(config.temp_path, client, task))
                         proc.start()
                         processes.append(proc)
                         cpus_offset += task.limits.cpus
@@ -90,17 +98,13 @@ def foreman(sleep_time, concurency, limits):
                     proc.join()
 
 def execute(args):
-    limits = KolejkaLimits()
-    limits.cpus = args.cpus
-    limits.memory = args.memory
-    limits.pids = args.pids
-    limits.storage = args.storage
-    limits.time = args.time
-    foreman(args.interval, args.concurency, limits)
+    kolejka_config(args=args)
+    foreman()
 
 def config_parser(parser):
-    parser.add_argument('--interval', type=float, default=FOREMAN_INTERVAL, help='dequeue interval (in seconds)')
-    parser.add_argument('--concurency', type=int, default=FOREMAN_CONCURENCY, help='number of simultaneous tasks')
+    parser.add_argument('--temp', type=str, help='temp folder')
+    parser.add_argument('--interval', type=float, help='dequeue interval (in seconds)')
+    parser.add_argument('--concurency', type=int,help='number of simultaneous tasks')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')

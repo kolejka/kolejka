@@ -6,6 +6,10 @@ import datetime
 import json
 
 def parse_float_with_modifiers(x, modifiers):
+    if isinstance(x, float):
+        return x
+    if isinstance(x, int):
+        return float(x)
     modifier = 1
     x = str(x).strip()
     while len(x) > 0 and x[-1] in modifiers :
@@ -15,6 +19,8 @@ def parse_float_with_modifiers(x, modifiers):
 
 def parse_time(x) :
     if x is not None:
+        if isinstance(x, datetime.timedelta):
+            return x
         return datetime.timedelta(seconds=parse_float_with_modifiers(x, {
             'D' : 60**2*24,
             'H' : 60**2,
@@ -27,6 +33,7 @@ def parse_time(x) :
 
 def unparse_time(x) :
     if x is not None:
+        assert isinstance(x, datetime.timedelta)
         return str(x.total_seconds())+'s'
 
 class TimeAction(argparse.Action):
@@ -57,6 +64,7 @@ def parse_memory(x):
 
 def unparse_memory(x):
     if x is not None:
+        assert isinstance(x, int)
         return str(x)+'b'
 
 class MemoryAction(argparse.Action):

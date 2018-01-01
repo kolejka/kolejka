@@ -1,5 +1,15 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+CONFIG_APP_NAME = 'kolejka'
+
+CONFIG_APP_AUTHOR = 'kolejka'
+
+CONFIG_FILE = 'kolejka.conf'
+
+CONFIG_SERVER = 'https://kolejka.matinf.uj.edu.pl'
+
+CONFIG_REPOSITORY = 'kolejka.matinf.uj.edu.pl'
+
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
 OBSERVER_SERVERSTRING = 'Kolejka Observer Daemon'
