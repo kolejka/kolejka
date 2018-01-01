@@ -7,7 +7,7 @@ import re
 import requests
 import sys
 
-from kolejka.common import client_config
+from kolejka.common import kolejka_config, client_config
 from kolejka.common import KolejkaTask, KolejkaResult
 
 class KolejkaClient:
@@ -16,6 +16,8 @@ class KolejkaClient:
         self.session = requests.session()
         for k,v in self.get('/settings/').json().items():
             self.config.__setattr__(k, v)
+        if self.config.username is not None and self.config.password is not None:
+            self.login()
     @property
     def instance(self):
         return self.config.server
@@ -178,10 +180,10 @@ class KolejkaClient:
             result.commit()
             return result
 
-    def dequeue(self, concurency, limits):
+    def dequeue(self, concurency, limits, tags):
         if not self.instance_session:
             self.login() 
-        response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump()}))
+        response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump(), 'tags' : tags}))
         if response.status_code == 200:
             ts = response.json()['tasks']
             tasks = list()
@@ -190,3 +192,92 @@ class KolejkaClient:
                 tt.load(t)
                 tasks.append(tt)
             return tasks
+
+def config_parser_blob_put(parser):
+    parser.add_argument("file", type=str, help='file')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.blob_put(args.file)
+        print(response['key'])
+    parser.set_defaults(execute=execute)
+
+def config_parser_blob_get(parser):
+    parser.add_argument("reference", type=str, help='reference key')
+    parser.add_argument("path", type=str, help='result path')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.blob_get(args.path, blob_reference=args.reference)
+    parser.set_defaults(execute=execute)
+
+def config_parser_blob(parser):
+    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers.required = True
+    subparser = subparsers.add_parser('put')
+    config_parser_blob_put(subparser)
+    subparser = subparsers.add_parser('get')
+    config_parser_blob_get(subparser)
+
+def config_parser_task_put(parser):
+    parser.add_argument("task", type=str, help='task folder')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        task = KolejkaTask(args.task)
+        response = client.task_put(task)
+        print(response.id)
+    parser.set_defaults(execute=execute)
+
+def config_parser_task_get(parser):
+    parser.add_argument("task", type=str, help='task key')
+    parser.add_argument("path", type=str, help='task folder')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.task_get(args.task, args.path)
+    parser.set_defaults(execute=execute)
+
+def config_parser_task(parser):
+    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers.required = True
+    subparser = subparsers.add_parser('put')
+    config_parser_task_put(subparser)
+    subparser = subparsers.add_parser('get')
+    config_parser_task_get(subparser)
+
+def config_parser_result_put(parser):
+    parser.add_argument("result", type=str, help='result folder')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        result = KolejkaResult(args.result)
+        response = client.result_put(result)
+    parser.set_defaults(execute=execute)
+
+def config_parser_result_get(parser):
+    parser.add_argument("task", type=str, help='task key')
+    parser.add_argument("path", type=str, help='result folder')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.result_get(args.task, args.path)
+    parser.set_defaults(execute=execute)
+
+def config_parser_result(parser):
+    subparsers = parser.add_subparsers(dest='subcommand')
+    subparsers.required = True
+    subparser = subparsers.add_parser('put')
+    config_parser_result_put(subparser)
+    subparser = subparsers.add_parser('get')
+    config_parser_result_get(subparser)
+
+def config_parser(parser):
+    subparsers = parser.add_subparsers(dest='command')
+    subparsers.required = True
+    subparser = subparsers.add_parser('blob')
+    config_parser_blob(subparser)
+    subparser = subparsers.add_parser('task')
+    config_parser_task(subparser)
+    subparser = subparsers.add_parser('result')
+    config_parser_result(subparser)

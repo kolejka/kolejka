@@ -55,7 +55,7 @@ def foreman():
     limits.time = config.time
     client = KolejkaClient()
     while True:
-        tasks = client.dequeue(config.concurency, limits)
+        tasks = client.dequeue(config.concurency, limits, config.tags)
         if len(tasks) == 0:
             time.sleep(config.interval)
         else:
@@ -97,17 +97,18 @@ def foreman():
                 for proc in processes:
                     proc.join()
 
-def execute(args):
-    kolejka_config(args=args)
-    foreman()
-
 def config_parser(parser):
+    parser.add_argument('--auto-tags', type=bool, help='add automatically generated machine tags', default=True)
+    parser.add_argument('--tags', type=str, help='comma separated list of machine tags')
     parser.add_argument('--temp', type=str, help='temp folder')
     parser.add_argument('--interval', type=float, help='dequeue interval (in seconds)')
-    parser.add_argument('--concurency', type=int,help='number of simultaneous tasks')
+    parser.add_argument('--concurency', type=int, help='number of simultaneous tasks')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
+    def execute(args):
+        kolejka_config(args=args)
+        foreman()
     parser.set_defaults(execute=execute)

@@ -194,32 +194,11 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
         #cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY
 
-def execute(args):
-    stage0(args.task, args.result, temp_path=args.temp, consume_task_folder=args.consume)
-
 def config_parser(parser):
     parser.add_argument("task", type=str, help='task folder')
     parser.add_argument("result", type=str, help='result folder')
     parser.add_argument("--temp", type=str, help='temp folder')
     parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    def execute(args):
+        stage0(args.task, args.result, temp_path=args.temp, consume_task_folder=args.consume)
     parser.set_defaults(execute=execute)
-
-def main():
-    import argparse
-    import logging
-
-    parser = argparse.ArgumentParser(description='KOLEJKA worker')
-    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
-    parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
-    config_parser(parser)
-    args = parser.parse_args()
-    level = logging.WARNING
-    if args.verbose:
-        level = logging.INFO
-    if args.debug:
-        level = logging.DEBUG
-    logging.basicConfig(level=level)
-    args.execute(args)
-
-if __name__ == '__main__':
-    main()

@@ -7,8 +7,9 @@ import json
 import logging
 import os
 
-from .parse import parse_memory, parse_time, parse_int, parse_float
+from .parse import parse_memory, parse_time, parse_bool, parse_int, parse_float, parse_str_list
 from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SERVER, CONFIG_REPOSITORY, FOREMAN_INTERVAL, FOREMAN_CONCURENCY
+from .tags import foreman_auto_tags
 
 class KolejkaConfig:
     def __init__(self, config_path=None, config=None, args=None, **kwargs):
@@ -64,6 +65,13 @@ class KolejkaConfig:
         self.foreman.__setattr__('storage', parse_memory(foreman_config.get('storage', default_config.get('storage', None))))
         self.foreman.__setattr__('pids', parse_int(foreman_config.get('pids', default_config.get('pids', None))))
         self.foreman.__setattr__('time', parse_time(foreman_config.get('time', default_config.get('time', None))))
+        self.foreman.__setattr__('auto_tags', parse_bool(foreman_config.get('auto_tags', default_config.get('auto_tags', []))))
+        tags = parse_str_list(foreman_config.get('tags', default_config.get('tags', None) or []))
+        if self.foreman.auto_tags:
+            tags = set(tags)
+            tags.update(foreman_auto_tags())
+            tags = list(tags)
+        self.foreman.__setattr__('tags', tags)
 
         self.workman.__setattr__('temp_path', workman_config.get('temp', default_config.get('temp', None)))
         self.workman.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))

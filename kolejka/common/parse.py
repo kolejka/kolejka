@@ -78,6 +78,8 @@ class MemoryAction(argparse.Action):
 
 def parse_bool(x):
     if x is not None:
+        if isinstance(x, bool):
+            return x
         return str(x).lower().strip() in [ 'true', 'yes', '1' ]
 
 def parse_int(x):
@@ -91,6 +93,13 @@ def parse_float(x):
 def parse_str(x):
     if x is not None:
         return str(x)
+
+def parse_str_list(x, separator=','):
+    print(x)
+    if x is not None:
+        if isinstance(x, list):
+            return [ str(xe) for xe in x ]
+        return [ xe.strip() for xe in str(x).split(separator) if xe.strip() ]
 
 def json_dict_load(data):
     if isinstance(data, dict):

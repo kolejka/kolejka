@@ -118,6 +118,7 @@ class KolejkaTask():
         args.update(kwargs)
         self.id = parse_str(args.get('id', None))
         self.image = parse_str(args.get('image', None))
+        self.tags = args.get('tags', [])
         self.limits = KolejkaLimits()
         self.limits.load(args.get('limits', {}))
         self.environment = dict()
@@ -136,6 +137,7 @@ class KolejkaTask():
             res['id'] = self.id
         if self.image is not None:
             res['image'] = self.image
+        res['tags'] = copy.copy(self.tags)
         res['limits'] = self.limits.dump()
         res['environment'] = copy.copy(self.environment)
         res['args'] = copy.copy(self.args)

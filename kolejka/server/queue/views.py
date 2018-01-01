@@ -18,20 +18,37 @@ def dequeue(request):
         params = json.loads(str(request.read(), request.encoding or 'utf-8')) 
         concurency = params.get('concurency', 1)
         limits = KolejkaLimits()
-        limits.load(params.get('limits', {}))
+        limits.load(params.get('limits', dict()))
+        tags = set(params.get('tags', list()))
+        resources = KolejkaLimits()
+        resources.update(limits)
 
         available_tasks = Task.objects.filter(assignee=None).order_by('time_create')[0:100]
         for t in available_tasks:
             if len(tasks) > concurency:
                 break
-
-            if True:
-                tt = t.task()
-
-                tasks.append(tt.dump())
-                t.assignee = request.user
-                t.save()
-                break
+            tt = t.task()
+            if not set(tt.tags).issubset(tags):
+                continue
+            if resources.cpus is not None and (tt.limits.cpus is None or tt.limits.cpus > resources.cpus):
+                continue
+            if resources.memory is not None and (tt.limits.memory is None or tt.limits.memory > resources.memory):
+                continue
+            if resources.pids is not None and (tt.limits.pids is None or tt.limits.pids > resources.pids):
+                continue
+            if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
+                continue
+            tasks.append(tt.dump())
+            t.assignee = request.user
+            t.save()
+            if resources.cpus is not None:
+                resources.cpus -= tt.limits.cpus
+            if resources.memory is not None:
+                resources.memory -= tt.limits.memory
+            if resources.pids is not None:
+                resources.pids -= tt.limits.pids
+            if resources.storage is not None:
+                resources.storage -= tt.limits.storage
 
         response = dict()
         response['tasks'] = tasks

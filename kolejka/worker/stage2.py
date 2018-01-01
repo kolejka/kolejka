@@ -118,12 +118,11 @@ def stage2(task_path, result_path):
 
     sys.exit(result.returncode)
 
-def execute(args):
-    stage2(args.task, args.result)
-
 def config_parser(parser):
     parser.add_argument("task", type=str, help='task folder')
     parser.add_argument("result", type=str, help='result folder')
+    def execute(args):
+        stage2(args.task, args.result)
     parser.set_defaults(execute=execute)
 
 def main():
