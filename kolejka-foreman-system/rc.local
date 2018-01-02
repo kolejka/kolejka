@@ -72,7 +72,7 @@ KOLEJKA_SYSTEMS=foreman,observer ./setup.py install
 popd
 
 # KOLEJKA OBSERVER DAEMON
-systemctl start kolejka-observer
+systemctl restart kolejka-observer
 
 # KOLEJKA FOREMAN DAEMON
-systemctl start kolejka-foreman
+systemctl restart kolejka-foreman
