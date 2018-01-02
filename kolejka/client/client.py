@@ -37,6 +37,9 @@ class KolejkaClient:
         if len(args) >= 1:
             args = list(args)
             args[0] = self.instance_url(args[0])
+        headers = kwargs.get('headers', dict())
+        headers['Referer'] = self.instance
+        kwargs['headers'] = headers
         return method(*args, **kwargs)
 
     def complex(self, method, *args, **kwargs):
@@ -45,6 +48,7 @@ class KolejkaClient:
             args[0] = self.instance_url(args[0])
         headers = kwargs.get('headers', dict())
         headers['X-CSRFToken'] = self.instance_csrf
+        headers['Referer'] = self.instance
         kwargs['headers'] = headers
         result = method(*args, **kwargs)
         return result
