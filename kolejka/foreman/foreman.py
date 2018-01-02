@@ -7,12 +7,12 @@ import glob
 import json
 import logging
 import math
-from multiprocessing import Process
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from threading import Thread
 import time
 import uuid
 
@@ -82,7 +82,7 @@ def foreman():
                         if resources.storage is not None and task.limits.storage > resources.storage:
                             ok = False
                         if ok:
-                            proc = Process(target=foreman_single, args=(config.temp_path, client, task))
+                            proc = Thread(target=foreman_single, args=(config.temp_path, client, task))
                             proc.start()
                             processes.append(proc)
                             cpus_offset += task.limits.cpus
