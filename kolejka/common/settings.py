@@ -6,9 +6,9 @@ CONFIG_APP_AUTHOR = 'kolejka'
 
 CONFIG_FILE = 'kolejka.conf'
 
-CONFIG_SERVER = 'https://kolejka.matinf.uj.edu.pl'
+CONFIG_SERVER = 'https://kolejka.matinf.uj.edu.pl/kolejka'
 
-CONFIG_REPOSITORY = 'kolejka.matinf.uj.edu.pl'
+CONFIG_REPOSITORY = 'kolejka'
 
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
@@ -24,7 +24,7 @@ WORKER_DIRECTORY = '/opt/kolejka'
 
 WORKER_HOSTNAME = 'kolejka'
 
-WORKER_REPOSITORY = 'kolejka.matinf.uj.edu.pl'
+WORKER_REPOSITORY = 'kolejka'
 
 FOREMAN_CONCURENCY = 8
 

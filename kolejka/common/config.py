@@ -30,7 +30,9 @@ class KolejkaConfig:
         if self.config_file is None:
             conf_dirs = appdirs.AppDirs(CONFIG_APP_NAME, CONFIG_APP_AUTHOR, multipath=True)
             check_dirs = conf_dirs.user_config_dir.split(':')
+            check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
             check_dirs += conf_dirs.site_config_dir.split(':')
+            logging.debug('Looking for configuration in {}'.format(check_dirs))
             for path in check_dirs:
                 check_path = os.path.join(path, CONFIG_FILE)
                 if os.path.isfile(check_path):
