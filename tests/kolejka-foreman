@@ -7,6 +7,6 @@ PROJECT="$(dirname "${OFFICE}")"
 
 FOREMAN="${PROJECT}/kolejka/foreman/__init__.py"
 
-OPTS="--debug --config-file ${OFFICE}/kolejka.conf --config dev --tags dev,user:$(whoami)"
+OPTS="--debug --config-file ${OFFICE}/kolejka.conf --tags dev,user:$(whoami)"
 
 exec sudo PYTHONPATH="${PROJECT}" python3 "${FOREMAN}" ${OPTS} "$@"

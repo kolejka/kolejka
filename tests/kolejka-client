@@ -7,6 +7,6 @@ PROJECT="$(dirname "${OFFICE}")"
 
 CLIENT="${PROJECT}/kolejka/client/__init__.py"
 
-OPTS="--debug --config-file ${OFFICE}/kolejka.conf --config dev"
+OPTS="--debug --config-file ${OFFICE}/kolejka.conf"
 
 PYTHONPATH="${PROJECT}" exec python3 "${CLIENT}" ${OPTS} "$@"
