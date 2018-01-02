@@ -18,4 +18,4 @@ deploy :
 	cp -a kolejka-foreman.squashfs /srv/nfs/kolejka/foreman/casper/filesystem.squashfs
 	cp -a kolejka-foreman.vmlinuz /srv/tftp/configs/kolejka/foreman/vmlinuz
 	cp -a kolejka-foreman.initrd /srv/tftp/configs/kolejka/foreman/initrd
-	checker_restart 16
+	/root/bin/checker_restart 16

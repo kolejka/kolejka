@@ -72,6 +72,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         volumes = list()
         if os.path.exists(OBSERVER_SOCKET):
             volumes.append((OBSERVER_SOCKET, OBSERVER_SOCKET, 'rw'))
+        else:
+            logging.warning('Observer is not running.')
         volumes.append((jailed_result_path, os.path.join(WORKER_DIRECTORY, 'result'), 'rw'))
         for key, val in task.files.items():
             if key != TASK_SPEC:
@@ -87,7 +89,11 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         jailed.commit()
         volumes.append((jailed.path, os.path.join(WORKER_DIRECTORY, 'task'), 'rw'))
         if consume_task_folder:
-            shutil.rmtree(task_path)
+            try:
+                shutil.rmtree(task_path)
+            except:
+                logging.warning('Failed to remove {}'.format(task_path))
+                pass
         for spath in [ os.path.dirname(__file__) ]:
             stage1 = os.path.join(spath, 'stage1.sh')
             if os.path.isfile(stage1):
@@ -151,11 +157,14 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         start_time = datetime.datetime.now()
         docker_run = subprocess.run(docker_call, stdout=subprocess.PIPE)
         cid = str(docker_run.stdout, 'utf-8').strip()
-        logging.debug('Started container {}'.format(cid))
+        logging.info('Started container {}'.format(cid))
 
         while True:
-            docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
-            state = json.loads(str(docker_state_run.stdout, 'utf-8'))
+            try:
+                docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
+                state = json.loads(str(docker_state_run.stdout, 'utf-8'))
+            except:
+                break
             try:
                 result.stats.update(cgs.name_stats(cid))
             except:
@@ -170,10 +179,9 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 break
             if datetime.datetime.now() - start_time > task.limits.time + datetime.timedelta(seconds=2):
                 docker_kill_run = subprocess.run([ 'docker', 'kill', docker_task ])
-        subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
-        if os.path.isfile(os.path.join(jailed_result_path, RESULT_SPEC)):
+#        subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
             try:
-                summary = KolejkaResult(os.path.join(jailed_result_path, RESULT_SPEC))
+                summary = KolejkaResult(jailed_result_path)
                 result.stats.update(summary.stats)
             except:
                 pass
@@ -194,21 +202,10 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                         destpath = os.path.join(result.path, relpath)
                         os.makedirs(os.path.dirname(destpath), exist_ok=True)
                         shutil.move(realpath, destpath)
+                        os.chmod(destpath, 0o640)
                         result.files.add(relpath)
-                        print('#### * *')
-                        print('#  '+relpath)
-                        print('#### * *')
-                        print()
-                        with open(destpath, 'r') as file_file:
-                            print(file_file.read())
         result.commit()
         os.chmod(result.spec_path, 0o640)
-        print('#### * *')
-        print('#  '+RESULT_SPEC)
-        print('#### * *')
-        print()
-        with open(result.spec_path, 'r') as file_file:
-            print(file_file.read())
 
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)

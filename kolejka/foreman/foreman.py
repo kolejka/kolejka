@@ -57,47 +57,50 @@ def foreman():
     limits.time = config.time
     client = KolejkaClient()
     while True:
-        tasks = client.dequeue(config.concurency, limits, config.tags)
-        if len(tasks) == 0:
+        try:
+            tasks = client.dequeue(config.concurency, limits, config.tags)
+            if len(tasks) == 0:
+                time.sleep(config.interval)
+            else:
+                while len(tasks) > 0:
+                    resources = KolejkaLimits()
+                    resources.update(limits)
+                    processes = list()
+                    cpus_offset = 0
+                    for task in tasks:
+                        if len(processes) >= config.concurency:
+                            break
+                        task.limits.update(limits)
+                        task.limits.cpus_offset = cpus_offset
+                        ok = True
+                        if resources.cpus is not None and task.limits.cpus > resources.cpus:
+                            ok = False
+                        if resources.memory is not None and task.limits.memory > resources.memory:
+                            ok = False
+                        if resources.pids is not None and task.limits.pids > resources.pids:
+                            ok = False
+                        if resources.storage is not None and task.limits.storage > resources.storage:
+                            ok = False
+                        if ok:
+                            proc = Process(target=foreman_single, args=(config.temp_path, client, task))
+                            proc.start()
+                            processes.append(proc)
+                            cpus_offset += task.limits.cpus
+                            if resources.cpus is not None:
+                                resources.cpus -= task.limits.cpus
+                            if resources.memory is not None:
+                                resources.memory -= task.limits.memory
+                            if resources.pids is not None:
+                                resources.pids -= task.limits.pids
+                            if resources.storage is not None:
+                                resources.storage -= task.limits.storage
+                            tasks = tasks[1:]
+                        else:
+                            break
+                    for proc in processes:
+                        proc.join()
+        except:
             time.sleep(config.interval)
-        else:
-            while len(tasks) > 0:
-                resources = KolejkaLimits()
-                resources.update(limits)
-                processes = list()
-                cpus_offset = 0
-                for task in tasks:
-                    if len(processes) >= config.concurency:
-                        break
-                    task.limits.update(limits)
-                    task.limits.cpus_offset = cpus_offset
-                    ok = True
-                    if resources.cpus is not None and task.limits.cpus > resources.cpus:
-                        ok = False
-                    if resources.memory is not None and task.limits.memory > resources.memory:
-                        ok = False
-                    if resources.pids is not None and task.limits.pids > resources.pids:
-                        ok = False
-                    if resources.storage is not None and task.limits.storage > resources.storage:
-                        ok = False
-                    if ok:
-                        proc = Process(target=foreman_single, args=(config.temp_path, client, task))
-                        proc.start()
-                        processes.append(proc)
-                        cpus_offset += task.limits.cpus
-                        if resources.cpus is not None:
-                            resources.cpus -= task.limits.cpus
-                        if resources.memory is not None:
-                            resources.memory -= task.limits.memory
-                        if resources.pids is not None:
-                            resources.pids -= task.limits.pids
-                        if resources.storage is not None:
-                            resources.storage -= task.limits.storage
-                        tasks = tasks[1:]
-                    else:
-                        break
-                for proc in processes:
-                    proc.join()
 
 def config_parser(parser):
     parser.add_argument('--auto-tags', type=bool, help='add automatically generated machine tags', default=True)

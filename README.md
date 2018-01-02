@@ -47,14 +47,20 @@ Usage
 -----
 
 You can use `kolejka-client` to schedule tasks and download results from the server.
+To schedule a task and wait for the result:
+```
+$ kolejka-client execute TASK_PATH RESULT_PATH
+```
+To schedule a task:
 ```
 $ kolejka-client task put TASK_PATH
 ```
+To fetch a result:
 ```
 $ kolejka-client result get TASK_KEY
 ```
 
-`kolejka-server` is a standard django manage application that can be used to control Kolejka Server. 
+`kolejka-server` is a standard django manage script that can be used to control Kolejka Server. 
 ```
 $ kolejka-server runserver
 ```

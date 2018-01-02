@@ -6,6 +6,7 @@ import os
 import re
 import requests
 import sys
+import time
 
 from kolejka.common import kolejka_config, client_config
 from kolejka.common import KolejkaTask, KolejkaResult
@@ -337,6 +338,25 @@ def config_parser_result(parser):
     subparser = subparsers.add_parser('delete')
     config_parser_result_del(subparser)
 
+def config_parser_execute(parser):
+    parser.add_argument("task", type=str, help='task folder')
+    parser.add_argument("result", type=str, help='result folder')
+    parser.add_argument('--interval', type=float, default=5, help='result query interval (in seconds)')
+    parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        task = KolejkaTask(args.task)
+        response = client.task_put(task)
+        while True:
+            time.sleep(args.interval)
+            result = client.result_get(response.id, args.result)
+            if result is not None:
+                if args.consume:
+                    shutil.rmtree(args.task)
+                return result
+    parser.set_defaults(execute=execute)
+
 def config_parser(parser):
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
@@ -346,3 +366,5 @@ def config_parser(parser):
     config_parser_task(subparser)
     subparser = subparsers.add_parser('result')
     config_parser_result(subparser)
+    subparser = subparsers.add_parser('execute')
+    config_parser_execute(subparser)
