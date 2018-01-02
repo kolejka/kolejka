@@ -46,9 +46,9 @@ You can check our [Task](https://github.com/kolejka/kolejka/wiki/Task), and [Res
 Usage
 -----
 
-You can use `kolejka-cli` to schedule tasks and download results from the server.
+You can use `kolejka-client` to schedule tasks and download results from the server.
 ```
-$ kolejka-cli task run task/kolejka_task.json
+$ kolejka-client task put TASK_PATH
 ```
 
 `kolejka-server` is a standard django manage application that can be used to control Kolejka Server. 
@@ -60,8 +60,10 @@ You need to run Kolejka Foreman system on the grid nodes.
 
 You can use `kolejka-worker` to run tasks on your own computer. You need to install and run `docker-ce` and `kolejka-observer` in your system.
 ```
-$ kolejka-worker run task/kolejka_task.json result/kolejka_result.json
+$ kolejka-worker execute TASK_PATH RESULT_PATH
 ```
+
+`kolejka-foreman` is a simple script that downloads pending tasks from the server, runs them, and sends results back to the server.
 
 Design Goals
 ------------
