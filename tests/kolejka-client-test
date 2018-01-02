@@ -1,0 +1,47 @@
+#!/bin/bash
+# vim:ts=4:sts=4:sw=4:expandtab
+
+MYSELF="$(readlink -f "$(which "${0}")")"
+OFFICE="$(dirname "${MYSELF}")"
+PROJECT="$(dirname "${OFFICE}")"
+
+CLIENT="${OFFICE}/kolejka-client"
+
+TEMP="$(mktemp -d)"
+echo "${TEMP}"
+
+FILE="${1}"
+if [ ! -f "${FILE}" ]; then
+    FILE="${MYSELF}"
+fi
+echo "${FILE}"
+
+MD5="$(cat "${FILE}" | md5sum)"
+echo "${MD5}"
+
+REF="$("${CLIENT}" blob put "${FILE}")"
+echo "${REF}"
+
+"${CLIENT}" blob get "${REF}" "${TEMP}/test"
+MD52="$(cat "${TEMP}/test" | md5sum)"
+echo "${MD52}"
+"${CLIENT}" blob delete "${REF}"
+echo "${?}"
+
+TASK="$("${CLIENT}" task put "${PROJECT}/../TASK")"
+echo "${TASK}"
+"${CLIENT}" execute "${PROJECT}/../TASK" "${TEMP}/res"
+while true; do
+    "${CLIENT}" result get "${TASK}" "${TEMP}/result"
+    echo "${?}"
+    if [ -f "${TEMP}/result/kolejka_result.json" ]; then
+        break
+    fi
+    sleep 2
+done
+ls -Al "${TEMP}/res"
+cat "${TEMP}/res/kolejka_result.json"
+ls -Al "${TEMP}/result"
+cat "${TEMP}/result/kolejka_result.json"
+
+rm -rf "${TEMP}"
