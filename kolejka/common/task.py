@@ -118,7 +118,7 @@ class KolejkaTask():
         args.update(kwargs)
         self.id = parse_str(args.get('id', None))
         self.image = parse_str(args.get('image', None))
-        self.tags = args.get('tags', [])
+        self.requires = args.get('requires', [])
         self.limits = KolejkaLimits()
         self.limits.load(args.get('limits', {}))
         self.environment = dict()
@@ -137,7 +137,7 @@ class KolejkaTask():
             res['id'] = self.id
         if self.image is not None:
             res['image'] = self.image
-        res['tags'] = copy.copy(self.tags)
+        res['requires'] = copy.copy(self.requires)
         res['limits'] = self.limits.dump()
         res['environment'] = copy.copy(self.environment)
         res['args'] = copy.copy(self.args)
@@ -174,6 +174,7 @@ class KolejkaResult():
         args = json_dict_load(data)
         args.update(kwargs)
         self.id = parse_str(args.get('id', None))
+        self.tags = args.get('tags', [])
         self.limits = KolejkaLimits()
         self.limits.load(args.get('limits', {}))
         self.stats = KolejkaStats()
@@ -188,6 +189,7 @@ class KolejkaResult():
         res = dict()
         if self.id is not None:
             res['id'] = self.id
+        res['tags'] = copy.copy(self.tags)
         res['limits'] = self.limits.dump()
         res['stats'] = self.stats.dump()
         if self.result is not None:

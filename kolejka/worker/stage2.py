@@ -2,10 +2,13 @@
 
 #THIS SCRIPT MAY IMPORT ONLY STANDARD LIBRARY MODULES
 
+import argparse
+import http.client
 import json
 import logging
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import traceback
@@ -13,7 +16,121 @@ import traceback
 #THIS NEEDS TO BE THE SAME AS kolejka.common.settings.TASK_SPEC
 TASK_SPEC='kolejka_task.json'
 
-def stage2(task_path, result_path):
+#THIS NEEDS TO BE THE SAME AS kolejka.common.settings.RESULT_SPEC
+RESULT_SPEC='kolejka_result.json'
+
+#THIS NEEDS TO BE THE SAME AS kolejka.common.settings.OBSERVER_SOCKET
+OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"
+
+def parse_float_with_modifiers(x, modifiers):
+    if isinstance(x, float):
+        return x
+    if isinstance(x, int):
+        return float(x)
+    modifier = 1
+    x = str(x).strip()
+    while len(x) > 0 and x[-1] in modifiers :
+        modifier *= modifiers[x[-1]]
+        x = x[:-1]
+    return float(x) * modifier
+
+def parse_int(x):
+    if x is not None:
+        return int(x)
+
+def parse_memory(x):
+    if x is not None:
+        return int(round(parse_float_with_modifiers(x, {
+            'b' : 1,
+            'B' : 1,
+            'k' : 1024,
+            'K' : 1024,
+            'm' : 1024**2,
+            'M' : 1024**2,
+            'g' : 1024**3,
+            'G' : 1024**3,
+            't' : 1024**4,
+            'T' : 1024**4,
+            'p' : 1024**5,
+            'P' : 1024**5,
+        })))
+
+class MemoryAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.type = int
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, parse_memory(values))
+
+class HTTPUnixConnection(http.client.HTTPConnection):
+    def _get_hostport(self, host, port):
+        return (self.socket_path, None)
+    def __init__(self, socket_path):
+        self.socket_path = socket_path
+        super().__init__(self, socket_path)
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(self.socket_path)
+        if self._tunnel_host:
+            self._tunnel()
+
+def observer_start(cpus, cpus_offset, memory, pids):
+    if not os.path.exists(OBSERVER_SOCKET):
+        logging.error('Limits enabled with no kolejka-observer socket present')
+        sys.exit(0)
+    conn = HTTPUnixConnection(OBSERVER_SOCKET)
+    headers = dict()
+    headers['Content-Type'] = 'application/json; charset=utf-8'
+    headers['Content-Length'] = '2'
+    conn.request('POST', 'attach', '{}', headers)
+    with conn.getresponse() as response:
+        response_body = json.loads(response.read().decode('utf-8'))
+    session_id = response_body['session_id']
+    secret = response_body['secret']
+    limits = dict()
+    if cpus is not None:
+        limits['cpus'] = int(cpus)
+    if cpus_offset is not None:
+        limits['cpus_offset'] = int(cpus_offset)
+    if memory is not None:
+        limits['memory'] = int(memory)
+    if pids is not None:
+        limits['pids'] = int(pids)
+    params = dict()
+    params['limits'] = limits
+    params['session_id'] = session_id
+    params['secret'] = secret
+    body = bytes(json.dumps(params), 'utf-8')
+    headers['Content-Length'] = str(len(body))
+    conn.request('POST', 'limits', body, headers)
+    with conn.getresponse() as response:
+        response_body = json.loads(response.read().decode('utf-8'))
+    conn.close()
+    return session_id, secret
+
+def observer_stop(session_id, secret):
+    if not os.path.exists(OBSERVER_SOCKET):
+        logging.error('Limits enabled with no kolejka-observer socket present')
+        sys.exit(0)
+    conn = HTTPUnixConnection(OBSERVER_SOCKET)
+    headers = dict()
+    headers['Content-Type'] = 'application/json; charset=utf-8'
+    params = dict()
+    params['session_id'] = session_id
+    params['secret'] = secret
+    body = bytes(json.dumps(params), 'utf-8')
+    headers['Content-Length'] = str(len(body))
+    conn.request('POST', 'stats', body, headers)
+    with conn.getresponse() as response:
+        response_body = json.loads(response.read().decode('utf-8'))
+    conn.request('POST', 'close', body, headers)
+    conn.getresponse()
+    conn.close()
+    return response_body
+
+def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=None, pids=None):
     if not os.path.isdir(task_path):
         logging.error('Provided task path is not a directory')
         sys.exit(1)
@@ -46,6 +163,38 @@ def stage2(task_path, result_path):
     task_stdout = task.get('stdout', None)
     task_stderr = task.get('stderr', None)
     task_args = task.get('args', [ 'true' ])
+    task_cpus = parse_int(task.get('limits', dict()).get('cpus', None))
+    task_cpus_offset = parse_int(task.get('limits', dict()).get('cpus_offset', None))
+    task_memory = parse_memory(task.get('limits', dict()).get('memory', None))
+    task_pids = parse_int(task.get('limits', dict()).get('pids', None))
+
+    if task_cpus is not None and (cpus is None or task_cpus < cpus):
+        cpus = task_cpus
+    if task_cpus_offset is not None and (cpus_offset is None):
+        cpus_offset = task_cpus_offset
+    if task_memory is not None and (memory is None or task_memory < memory):
+        memory = task_memory
+    if task_pids is not None and (pids is None or task_pids < pids):
+        pids = task_pids
+    
+    summary = dict()
+    summary_spec_path = os.path.join(result_path, RESULT_SPEC)
+    for field in [ 'id', 'stdout', 'stderr' ]:
+        if field in task:
+            summary[field] = task[field]
+
+    observer = None
+    if cpus is not None or memory is not None or pids is not None: 
+        observer = observer_start(cpus, cpus_offset, memory, pids)
+        summary['limits'] = dict()
+        if cpus is not None:
+            summary['limits']['cpus'] = cpus
+        if cpus_offset is not None:
+            summary['limits']['cpus_offset'] = cpus_offset
+        if memory is not None:
+            summary['limits']['memory'] = memory
+        if pids is not None:
+            summary['limits']['pids'] = pids
 
     stdin_path = '/dev/null'
     stdout_path = '/dev/null'
@@ -57,6 +206,22 @@ def stage2(task_path, result_path):
     if task_stderr is not None:
         if task_stderr != task_stdout:
             stderr_path = os.path.join(result_path, task_stderr)
+
+    rrp = os.path.realpath(result_path)
+    trp = os.path.join(task_path, 'result')
+    if os.path.islink(trp):
+        logging.info('Removing {}'.format(trp))
+        os.unlink(trp)
+    trrp = os.path.realpath(trp)
+    if trrp != rrp:
+        if os.path.islink(trp) or os.path.isfile(trp):
+            logging.info('Removing {}'.format(trp))
+            os.unlink(trp)
+        elif os.path.isdir(trp):
+            logging.info('Removing {}'.format(trp))
+            shutil.rmtree(trp)
+        logging.debug('Creating symlink {} -> {}'.format(trrp, rrp))
+        os.symlink(rrp, trrp)
 
     with open(stdin_path, 'rb') as stdin_file:
         with open(stdout_path, 'wb') as stdout_file:
@@ -71,12 +236,6 @@ def stage2(task_path, result_path):
                         kwargs['stderr'] = stderr_file
                     else:
                         kwargs['stderr'] = subprocess.STDOUT
-
-                rrp = os.path.realpath(result_path)
-                trrp = os.path.realpath(os.path.join(task_path, 'result'))
-                if trrp != rrp:
-                    logging.debug('Creating symlink {} -> {}'.format(trrp, rrp))
-                    os.symlink(rrp, trrp)
                 logging.info('Executing task {} < {} > {} 2> {}'.format(task_args, task_stdin, task_stdout, task_stderr))
                 result = subprocess.run(
                     args=task_args,
@@ -84,8 +243,20 @@ def stage2(task_path, result_path):
                     cwd=task_path,
                     **kwargs
                 )
-
                 logging.info('Execution return code {}'.format(result.returncode))
+    if observer:
+        summary['stats'] = observer_stop(*observer)
+    summary['result'] = result.returncode
+    summary['files'] = list()
+    for dirpath, dirnames, filenames in os.walk(result_path):
+        for filename in filenames:
+            abspath = os.path.join(dirpath, filename)
+            realpath = os.path.realpath(abspath)
+            if realpath.startswith(os.path.realpath(result_path)+'/'):
+                relpath = abspath[len(result_path)+1:]
+                summary['files'].append(relpath)
+    with open(summary_spec_path, 'w') as summary_spec_file:
+        json.dump(summary, summary_spec_file, sort_keys=True, indent=2, ensure_ascii=False)
 
     stat = os.stat(result_path)
     for dirpath, dirnames, filenames in os.walk(result_path):
@@ -111,18 +282,36 @@ def stage2(task_path, result_path):
                 logging.warning('Failed to chmod {}'.format(abspath))
                 pass
 
-    try:
-        shutil.rmtree(task_path)
-    except:
-        pass
+    if consume:
+        for entry in os.listdir(task_path):
+            if entry == 'result' and trrp == rrp:
+                continue
+            try:
+                entry = os.path.join(task_path, entry)
+                if os.path.islink(entry) or os.path.isfile(entry):
+                    os.unlink(entry)
+                elif os.path.isdir(entry):
+                    shutil.rmtree(entry)
+            except:
+                pass
+    if trrp != rrp:
+        try:
+            os.unlink(trrp)
+        except:
+            pass
 
     sys.exit(result.returncode)
 
 def config_parser(parser):
     parser.add_argument("task", type=str, help='task folder')
     parser.add_argument("result", type=str, help='result folder')
+    parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.add_argument('--cpus', type=int, help='cpus limit')
+    parser.add_argument('--cpus-offset', type=int, help='cpus limit')
+    parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--pids', type=int, help='pids limit')
     def execute(args):
-        stage2(args.task, args.result)
+        stage2(args.task, args.result, args.consume, cpus=args.cpus, cpus_offset=args.cpus_offset, memory=args.memory, pids=args.pids)
     parser.set_defaults(execute=execute)
 
 def main():

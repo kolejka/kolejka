@@ -109,6 +109,17 @@ class KolejkaClient:
             print(response)
             print(response.text)
 
+    def blob_del(self, blob_reference=None, blob_hash=None):
+        if blob_reference is not None:
+            response = self.delete('/blob/reference/{}/'.format(blob_reference))
+        elif blob_hash is not None:
+            response = self.delete('/blob/blob/{}/'.format(blob_hash))
+        if response.status_code == 200:
+            pass
+        else:
+            print(response)
+            print(response.text)
+
     def blob_check(self, blob_reference=None, blob_hash=None):
         if blob_reference is not None:
             response = self.head('/blob/reference/{}/'.format(blob_reference), stream=True)
@@ -136,6 +147,8 @@ class KolejkaClient:
             print(info.text)
 
     def task_get(self, task_key, task_path):
+        if isinstance(task_key, KolejkaTask):
+            task_key = task_key.id
         response = self.get('/task/task/{}/'.format(task_key))
         if response.status_code == 200:
             os.makedirs(task_path, exist_ok=True)
@@ -147,6 +160,16 @@ class KolejkaClient:
                 f.path = k
             task.commit()
             return task
+
+    def task_del(self, task_key):
+        if isinstance(task_key, KolejkaTask):
+            task_key = task_key.id
+        response = self.delete('/task/task/{}/'.format(task_key))
+        if response.status_code == 200:
+            pass
+        else:
+            print(response)
+            print(response.text)
 
     def result_put(self, result):
         if not self.instance_session:
@@ -180,6 +203,18 @@ class KolejkaClient:
             result.commit()
             return result
 
+    def result_del(self, result_key):
+        if isinstance(task_key, KolejkaTask):
+            task_key = task_key.id
+        if isinstance(task_key, KolejkaResult):
+            task_key = task_key.id
+        response = self.delete('/task/result/{}/'.format(task_key))
+        if response.status_code == 200:
+            pass
+        else:
+            print(response)
+            print(response.text)
+
     def dequeue(self, concurency, limits, tags):
         if not self.instance_session:
             self.login() 
@@ -211,6 +246,14 @@ def config_parser_blob_get(parser):
         response = client.blob_get(args.path, blob_reference=args.reference)
     parser.set_defaults(execute=execute)
 
+def config_parser_blob_del(parser):
+    parser.add_argument("reference", type=str, help='reference key')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.blob_del(blob_reference=args.reference)
+    parser.set_defaults(execute=execute)
+
 def config_parser_blob(parser):
     subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
@@ -218,6 +261,8 @@ def config_parser_blob(parser):
     config_parser_blob_put(subparser)
     subparser = subparsers.add_parser('get')
     config_parser_blob_get(subparser)
+    subparser = subparsers.add_parser('delete')
+    config_parser_blob_del(subparser)
 
 def config_parser_task_put(parser):
     parser.add_argument("task", type=str, help='task folder')
@@ -238,6 +283,14 @@ def config_parser_task_get(parser):
         response = client.task_get(args.task, args.path)
     parser.set_defaults(execute=execute)
 
+def config_parser_task_del(parser):
+    parser.add_argument("task", type=str, help='task key')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.task_del(args.task)
+    parser.set_defaults(execute=execute)
+
 def config_parser_task(parser):
     subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
@@ -245,6 +298,8 @@ def config_parser_task(parser):
     config_parser_task_put(subparser)
     subparser = subparsers.add_parser('get')
     config_parser_task_get(subparser)
+    subparser = subparsers.add_parser('delete')
+    config_parser_task_del(subparser)
 
 def config_parser_result_put(parser):
     parser.add_argument("result", type=str, help='result folder')
@@ -264,6 +319,14 @@ def config_parser_result_get(parser):
         response = client.result_get(args.task, args.path)
     parser.set_defaults(execute=execute)
 
+def config_parser_result_del(parser):
+    parser.add_argument("task", type=str, help='task key')
+    def execute(args):
+        kolejka_config(args=args)
+        client = KolejkaClient()
+        response = client.result_del(args.task)
+    parser.set_defaults(execute=execute)
+
 def config_parser_result(parser):
     subparsers = parser.add_subparsers(dest='subcommand')
     subparsers.required = True
@@ -271,6 +334,8 @@ def config_parser_result(parser):
     config_parser_result_put(subparser)
     subparser = subparsers.add_parser('get')
     config_parser_result_get(subparser)
+    subparser = subparsers.add_parser('delete')
+    config_parser_result_del(subparser)
 
 def config_parser(parser):
     subparsers = parser.add_subparsers(dest='command')

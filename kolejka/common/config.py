@@ -18,9 +18,10 @@ class KolejkaConfig:
         if isinstance(args, argparse.Namespace):
             args = args.__dict__
         args.update(kwargs)
+        args = dict( [ (k,v) for k,v in args.items() if v is not None ] )
         self.client = argparse.Namespace()
         self.foreman = argparse.Namespace()
-        self.workman = argparse.Namespace()
+        self.worker = argparse.Namespace()
         self.config_path = config_path
         self.config = config 
         raw_config = dict()
@@ -50,7 +51,7 @@ class KolejkaConfig:
             logging.warning('Config {} not found in config file {}'.format(self.config, self.config_path))
         client_config = raw_config.get(self.config, dict())
         foreman_config = raw_config.get('foreman', dict())
-        workman_config = raw_config.get('workman', dict())
+        worker_config = raw_config.get('worker', dict())
 
         self.client.__setattr__('server', client_config.get('server', default_config.get('server', None) or CONFIG_SERVER))
         self.client.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
@@ -73,13 +74,15 @@ class KolejkaConfig:
             tags = list(tags)
         self.foreman.__setattr__('tags', tags)
 
-        self.workman.__setattr__('temp_path', workman_config.get('temp', default_config.get('temp', None)))
-        self.workman.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
-        self.workman.__setattr__('cpus', parse_int(workman_config.get('cpus', default_config.get('cpus', None))))
-        self.workman.__setattr__('memory', parse_memory(workman_config.get('memory', default_config.get('memory', None))))
-        self.workman.__setattr__('storage', parse_memory(workman_config.get('storage', default_config.get('storage', None))))
-        self.workman.__setattr__('pids', parse_int(workman_config.get('pids', default_config.get('pids', None))))
-        self.workman.__setattr__('time', parse_time(workman_config.get('time', default_config.get('time', None))))
+        self.worker.__setattr__('debug', parse_bool(worker_config.get('debug', default_config.get('debug', None) or False)))
+        self.worker.__setattr__('verbose', parse_bool(worker_config.get('verbose', default_config.get('verbose', None) or False)))
+        self.worker.__setattr__('temp_path', worker_config.get('temp', default_config.get('temp', None)))
+        self.worker.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
+        self.worker.__setattr__('cpus', parse_int(worker_config.get('cpus', default_config.get('cpus', None))))
+        self.worker.__setattr__('memory', parse_memory(worker_config.get('memory', default_config.get('memory', None))))
+        self.worker.__setattr__('storage', parse_memory(worker_config.get('storage', default_config.get('storage', None))))
+        self.worker.__setattr__('pids', parse_int(worker_config.get('pids', default_config.get('pids', None))))
+        self.worker.__setattr__('time', parse_time(worker_config.get('time', default_config.get('time', None))))
 
 _config = None
 def _configure(config_path=None, config=None, args=None, **kwargs):

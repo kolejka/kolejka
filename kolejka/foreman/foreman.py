@@ -23,6 +23,7 @@ from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
 
 def foreman_single(temp_path, client, task):
+    config = foreman_config()
     with tempfile.TemporaryDirectory(temp_path) as jailed_path:
         if task.limits.storage is not None:
             subprocess.run(['mount', '-t', 'tmpfs', '-o', 'size='+str(task.limits.storage), 'none', jailed_path], check=True)
@@ -40,6 +41,7 @@ def foreman_single(temp_path, client, task):
             task.commit()
             stage0(task.path, result_path, temp_path=temp_path, consume_task_folder=True)
             result = KolejkaResult(result_path)
+            result.tags = config.tags
             client.result_put(result)
         finally:
             if task.limits.storage is not None:

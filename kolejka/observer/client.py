@@ -65,11 +65,11 @@ class KolejkaObserverClient:
 def run(args, limits=None, **kwargs):
     if limits is None:
         limits = KolejkaLimits()
-    def target(conn, args, limits kwargs):
+    def target(conn, args, limits, kwargs):
         client = KolejkaObserverClient()
         client.attach()
         client.limit(limits)
-        res = subprocess.run(args, **kwargs))
+        res = subprocess.run(args, **kwargs)
         stats = client.stats()
         client.close()
 #TODO: add stats to res, handle exceptions

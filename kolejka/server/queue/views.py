@@ -28,7 +28,7 @@ def dequeue(request):
             if len(tasks) > concurency:
                 break
             tt = t.task()
-            if not set(tt.tags).issubset(tags):
+            if not set(tt.requires).issubset(tags):
                 continue
             if resources.cpus is not None and (tt.limits.cpus is None or tt.limits.cpus > resources.cpus):
                 continue

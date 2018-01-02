@@ -95,7 +95,6 @@ def parse_str(x):
         return str(x)
 
 def parse_str_list(x, separator=','):
-    print(x)
     if x is not None:
         if isinstance(x, list):
             return [ str(xe) for xe in x ]

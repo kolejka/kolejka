@@ -303,7 +303,8 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             fun = self.cmd_open
         elif path == 'attach':
             fun = self.cmd_attach
-            check_session = True
+            if 'session_id' in params:
+                check_session = True
         elif path == 'limits':
             fun = self.cmd_limits
             check_session = True

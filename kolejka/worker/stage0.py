@@ -16,8 +16,10 @@ import time
 import uuid
 
 from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_REPOSITORY, WORKER_DIRECTORY
-from kolejka.common import KolejkaTask, KolejkaResult
+from kolejka.common import kolejka_config, worker_config
+from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import ControlGroupSystem
+from kolejka.common import MemoryAction, TimeAction
 
 def silent_call(*args, **kwargs):
     kwargs['stdin'] = kwargs.get('stdin', subprocess.DEVNULL)
@@ -26,6 +28,7 @@ def silent_call(*args, **kwargs):
     return subprocess.run(*args, **kwargs)
 
 def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
+    config = worker_config()
     cgs = ControlGroupSystem()
     task = KolejkaTask(task_path)
     if not task.id:
@@ -40,7 +43,13 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     if not task.files.is_local:
         logging.error('Task contains non-local files')
         sys.exit(1)
-#TODO: sanitize limits (enforce some sensible limits)
+    limits = KolejkaLimits()
+    limits.cpus = config.cpus
+    limits.memory = config.memory
+    limits.pids = config.pids
+    limits.storage = config.storage
+    limits.time = config.time
+    task.limits.update(limits)
 
     docker_task = 'kolejka_worker_{}'.format(task.id)
 
@@ -50,7 +59,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     ]
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
-#TODO jailed_path size remains unlimited
+#TODO jailed_path size remains unlimited?
         logging.debug('Using {} as temporary directory'.format(jailed_path))
         jailed_task_path = os.path.join(jailed_path, 'task')
         os.makedirs(jailed_task_path, exist_ok=True)
@@ -116,10 +125,15 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         for v in volumes:
             docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
         docker_call += [ '--workdir', WORKER_DIRECTORY ]
-        docker_call += [ WORKER_REPOSITORY.rstrip('/')+ '/' + task.image ]
-        docker_call += [ '--debug' ]
-        docker_call += [ '/opt/kolejka/task' ]
-        docker_call += [ '/opt/kolejka/result' ]
+        docker_image = '/'.join( [ a for a in [ config.repository.rstrip('/'), task.image.lstrip('/') ] if a ] )
+        docker_call += [ docker_image ]
+        docker_call += [ '--consume' ]
+        if config.debug:
+            docker_call += [ '--debug' ]
+        if config.verbose:
+            docker_call += [ '--verbose' ]
+        docker_call += [ os.path.join(WORKER_DIRECTORY, 'task') ]
+        docker_call += [ os.path.join(WORKER_DIRECTORY, 'result') ]
         logging.debug('Docker call : {}'.format(docker_call))
 
         for docker_clean in docker_cleanup:
@@ -152,16 +166,23 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 try:
                     result.stats.time = dateutil.parser.parse(state['FinishedAt']) - dateutil.parser.parse(state['StartedAt'])
                 except:
-                    results.stats.time = None
+                    result.stats.time = None
                 break
+            if datetime.datetime.now() - start_time > task.limits.time + datetime.timedelta(seconds=2):
+                docker_kill_run = subprocess.run([ 'docker', 'kill', docker_task ])
         subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
+        if os.path.isfile(os.path.join(jailed_result_path, RESULT_SPEC)):
+            try:
+                summary = KolejkaResult(os.path.join(jailed_result_path, RESULT_SPEC))
+                result.stats.update(summary.stats)
+            except:
+                pass
 
         stop_time = datetime.datetime.now()
         if result.stats.time is None:
             result.stats.time = stop_time - start_time
         result.stats.pids.usage = None
         result.stats.memory.usage = None
-
 
         for dirpath, dirnames, filenames in os.walk(jailed_result_path):
             for filename in filenames:
@@ -192,13 +213,18 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
 
-        #cgs.name_close(docker_task) #THIS CLEANS CGROUPS AND WORKS FOR ROOT USER ONLY
-
 def config_parser(parser):
     parser.add_argument("task", type=str, help='task folder')
     parser.add_argument("result", type=str, help='result folder')
     parser.add_argument("--temp", type=str, help='temp folder')
     parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.add_argument('--cpus', type=int, help='cpus limit')
+    parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--pids', type=int, help='pids limit')
+    parser.add_argument('--storage', action=MemoryAction, help='storage limit')
+    parser.add_argument('--time', action=TimeAction, help='time limit')
     def execute(args):
-        stage0(args.task, args.result, temp_path=args.temp, consume_task_folder=args.consume)
+        kolejka_config(args=args)
+        config = worker_config()
+        stage0(args.task, args.result, temp_path=config.temp_path, consume_task_folder=args.consume)
     parser.set_defaults(execute=execute)
