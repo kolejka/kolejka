@@ -1,5 +1,9 @@
 .PHONY: all
-all : build kolejka-foreman.squashfs kolejka-foreman.vmlinuz
+all : clean build kolejka-foreman.squashfs kolejka-foreman.vmlinuz
+
+.PHONY: clean
+clean :
+	rm -rf kolejka-foreman.squashfs kolejka-foreman.vmlinuz kolejka-foreman.initrd
 
 .PHONY: build
 build :
