@@ -50,6 +50,9 @@ You can use `kolejka-client` to schedule tasks and download results from the ser
 ```
 $ kolejka-client task put TASK_PATH
 ```
+```
+$ kolejka-client result get TASK_KEY
+```
 
 `kolejka-server` is a standard django manage application that can be used to control Kolejka Server. 
 ```
