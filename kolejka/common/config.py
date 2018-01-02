@@ -12,7 +12,7 @@ from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SE
 from .tags import foreman_auto_tags
 
 class KolejkaConfig:
-    def __init__(self, config_path=None, config=None, args=None, **kwargs):
+    def __init__(self, config_file=None, config=None, args=None, **kwargs):
         if args is None:
             args = dict()
         if isinstance(args, argparse.Namespace):
@@ -22,23 +22,23 @@ class KolejkaConfig:
         self.client = argparse.Namespace()
         self.foreman = argparse.Namespace()
         self.worker = argparse.Namespace()
-        self.config_path = config_path
+        self.config_file = config_file
         self.config = config 
         raw_config = dict()
-        if self.config_path is None:
-            self.config_path = args.get('config_path', None)
-        if self.config_path is None:
+        if self.config_file is None:
+            self.config_file = args.get('config_file', None)
+        if self.config_file is None:
             conf_dirs = appdirs.AppDirs(CONFIG_APP_NAME, CONFIG_APP_AUTHOR, multipath=True)
             check_dirs = conf_dirs.user_config_dir.split(':')
             check_dirs += conf_dirs.site_config_dir.split(':')
             for path in check_dirs:
                 check_path = os.path.join(path, CONFIG_FILE)
                 if os.path.isfile(check_path):
-                    self.config_path = check_path
+                    self.config_file = check_path
                     break
-        if self.config_path is not None:
+        if self.config_file is not None:
             parser = configparser.ConfigParser()
-            parser.read(self.config_path)
+            parser.read(self.config_file)
             raw_config = dict( [ (k, dict(v)) for (k, v) in parser.items() ] )
         if self.config is None:
             self.config = args.get('config', None)
@@ -46,9 +46,9 @@ class KolejkaConfig:
         default_config.update(args)
         if self.config is None:
             self.config = default_config.get('config', 'client')
-        logging.info('Using config {} in {} {}'.format(self.config, self.config_path, args))
+        logging.info('Using config {} in {} {}'.format(self.config, self.config_file, args))
         if self.config is not None and self.config not in raw_config:
-            logging.warning('Config {} not found in config file {}'.format(self.config, self.config_path))
+            logging.warning('Config {} not found in config file {}'.format(self.config, self.config_file))
         client_config = raw_config.get(self.config, dict())
         foreman_config = raw_config.get('foreman', dict())
         worker_config = raw_config.get('worker', dict())
@@ -85,26 +85,26 @@ class KolejkaConfig:
         self.worker.__setattr__('time', parse_time(worker_config.get('time', default_config.get('time', None))))
 
 _config = None
-def _configure(config_path=None, config=None, args=None, **kwargs):
+def _configure(config_file=None, config=None, args=None, **kwargs):
     global _config
     if _config is None:
-        _config = KolejkaConfig(config_path=config_path, config=config, args=args, **kwargs)
+        _config = KolejkaConfig(config_file=config_file, config=config, args=args, **kwargs)
 
-def kolejka_config(config_path=None, config=None, args=None, **kwargs):
-    _configure(config_path=config_path, config=config, args=args, **kwargs)
+def kolejka_config(config_file=None, config=None, args=None, **kwargs):
+    _configure(config_file=config_file, config=config, args=args, **kwargs)
     return _config
 
-def client_config(config_path=None, config=None, args=None, **kwargs):
-    _configure(config_path=config_path, config=config, args=args, **kwargs)
+def client_config(config_file=None, config=None, args=None, **kwargs):
+    _configure(config_file=config_file, config=config, args=args, **kwargs)
     logging.debug('Client config : {}'.format(_config.client.__dict__))
     return _config.client
 
-def foreman_config(config_path=None, config=None, args=None, **kwargs):
-    _configure(config_path=config_path, config=config, args=args, **kwargs)
+def foreman_config(config_file=None, config=None, args=None, **kwargs):
+    _configure(config_file=config_file, config=config, args=args, **kwargs)
     logging.debug('Foreman config : {}'.format(_config.foreman.__dict__))
     return _config.foreman
         
-def worker_config(config_path=None, config=None, args=None, **kwargs):
-    _configure(config_path=config_path, config=config, args=args, **kwargs)
+def worker_config(config_file=None, config=None, args=None, **kwargs):
+    _configure(config_file=config_file, config=config, args=args, **kwargs)
     logging.debug('Worker config : {}'.format(_config.worker.__dict__))
     return _config.worker

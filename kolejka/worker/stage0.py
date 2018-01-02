@@ -141,6 +141,9 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'task') ]
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'result') ]
         logging.debug('Docker call : {}'.format(docker_call))
+        
+        docker_pull_call = [ 'docker', 'pull', docker_image ]
+        subprocess.run(docker_pull_call, check=True)
 
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
@@ -179,12 +182,12 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 break
             if datetime.datetime.now() - start_time > task.limits.time + datetime.timedelta(seconds=2):
                 docker_kill_run = subprocess.run([ 'docker', 'kill', docker_task ])
-#        subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
-            try:
-                summary = KolejkaResult(jailed_result_path)
-                result.stats.update(summary.stats)
-            except:
-                pass
+        subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
+        try:
+            summary = KolejkaResult(jailed_result_path)
+            result.stats.update(summary.stats)
+        except:
+            pass
 
         stop_time = datetime.datetime.now()
         if result.stats.time is None:
