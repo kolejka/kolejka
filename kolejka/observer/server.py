@@ -14,7 +14,7 @@ import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
-from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_SERVERSTRING
+from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_PID_FILE, OBSERVER_SERVERSTRING
 from kolejka.common import HTTPUnixServer
 from kolejka.common import KolejkaLimits, KolejkaStats
 from kolejka.common import ControlGroupSystem
@@ -456,6 +456,7 @@ def main():
     import os
     import setproctitle
     import traceback
+    from daemonize import Daemonize
     from kolejka.common.settings import OBSERVER_SOCKET
     from kolejka.observer import KolejkaObserverServer
 
@@ -463,6 +464,8 @@ def main():
     parser.add_argument("-s", "--socket", type=str, default=OBSERVER_SOCKET, help='listen on socket')
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
     parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
+    parser.add_argument("--detach", action="store_true", default=False, help='run in background')
+    parser.add_argument("--pid-file", type=str, default=OBSERVER_PID_FILE, help='pid file')
     args = parser.parse_args()
     level=logging.WARNING
     if args.verbose:
@@ -472,14 +475,14 @@ def main():
     logging.basicConfig(level=level)
     setproctitle.setproctitle('kolejka-observer')
 
-    try:
-        with KolejkaObserverServer(args.socket) as server:
-            server.serve_forever()
-    except KeyboardInterrupt:
-        raise
-    except:
-        traceback.print_exc()
-        raise
+    with KolejkaObserverServer(args.socket) as server:
+        def action():
+            return server.serve_forever()
+        if args.detach:
+            daemon = Daemonize(app='kolejka-observer', pid=args.pid_file, action=action, verbose=(args.debug or args.verbose))
+            daemon.start()
+        else:
+            action()
 
 if __name__ == '__main__':
     main()

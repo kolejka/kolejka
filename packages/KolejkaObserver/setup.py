@@ -13,6 +13,7 @@ kolejka_observer = {
         'description' : 'Kolejka Observer Daemon',
         'packages' : sub_find_packages('kolejka.observer'),
         'install_requires' : [
+            'daemonize',
             'setproctitle',
             'KolejkaCommon',
         ],

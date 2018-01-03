@@ -12,6 +12,8 @@ CONFIG_REPOSITORY = 'kolejka'
 
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
+OBSERVER_PID_FILE = "/var/run/kolejka/observer/pid"
+
 OBSERVER_SERVERSTRING = 'Kolejka Observer Daemon'
 
 OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"

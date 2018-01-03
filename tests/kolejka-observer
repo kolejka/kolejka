@@ -9,4 +9,4 @@ OBSERVER="${PROJECT}/kolejka/observer/server.py"
 
 OPTS="--debug"
 
-exec sudo PYTHONPATH="${PROJECT}" python3 "${OBSERVER}" ${OPTS}
+exec sudo PYTHONPATH="${PROJECT}" python3 "${OBSERVER}" ${OPTS} "$@"
