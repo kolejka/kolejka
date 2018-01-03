@@ -70,6 +70,8 @@ def foreman():
                     for task in tasks:
                         if len(processes) >= config.concurency:
                             break
+                        if task.exclusive and len(processes) > 0:
+                            break
                         task.limits.update(limits)
                         task.limits.cpus_offset = cpus_offset
                         ok = True
@@ -95,6 +97,8 @@ def foreman():
                             if resources.storage is not None:
                                 resources.storage -= task.limits.storage
                             tasks = tasks[1:]
+                            if task.exclusive:
+                                break
                         else:
                             break
                     for proc in processes:

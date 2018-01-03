@@ -28,6 +28,8 @@ def dequeue(request):
             if len(tasks) > concurency:
                 break
             tt = t.task()
+            if len(tasks) > 0 and tt.exclusive:
+                continue
             if not set(tt.requires).issubset(tags):
                 continue
             if resources.cpus is not None and (tt.limits.cpus is None or tt.limits.cpus > resources.cpus):
@@ -49,6 +51,8 @@ def dequeue(request):
                 resources.pids -= tt.limits.pids
             if resources.storage is not None:
                 resources.storage -= tt.limits.storage
+            if tt.exclusive:
+                break
 
         response = dict()
         response['tasks'] = tasks

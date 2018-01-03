@@ -119,6 +119,7 @@ class KolejkaTask():
         self.id = parse_str(args.get('id', None))
         self.image = parse_str(args.get('image', None))
         self.requires = args.get('requires', [])
+        self.exclusive = parse_bool(args.get('exclusive', None))
         self.limits = KolejkaLimits()
         self.limits.load(args.get('limits', {}))
         self.environment = dict()
@@ -138,6 +139,8 @@ class KolejkaTask():
         if self.image is not None:
             res['image'] = self.image
         res['requires'] = copy.copy(self.requires)
+        if self.exclusive is not None:
+            res['exclusive'] = self.exclusive
         res['limits'] = self.limits.dump()
         res['environment'] = copy.copy(self.environment)
         res['args'] = copy.copy(self.args)
