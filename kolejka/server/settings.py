@@ -83,6 +83,13 @@ STATIC_ROOT = os.path.join(PROJECT_DIR, '../kolejka-server-static')
 BLOB_HASH_ALGORITHM = 'sha256'
 BLOB_STORE_PATH = os.path.join(PROJECT_DIR, '../kolejka-server-blobs')
 
+LIMIT_CPUS = None
+LIMIT_MEMORY = None
+LIMIT_PIDS = None
+LIMIT_STORAGE = None 
+LIMIT_NETWORK = None
+LIMIT_TIME = None
+
 try:
     from kolejka.server.settings_local import *
 except ImportError:

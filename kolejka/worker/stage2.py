@@ -89,24 +89,25 @@ def observer_start(cpus, cpus_offset, memory, pids):
         response_body = json.loads(response.read().decode('utf-8'))
     session_id = response_body['session_id']
     secret = response_body['secret']
-    limits = dict()
-    if cpus is not None:
-        limits['cpus'] = int(cpus)
-    if cpus_offset is not None:
-        limits['cpus_offset'] = int(cpus_offset)
-    if memory is not None:
-        limits['memory'] = int(memory)
-    if pids is not None:
-        limits['pids'] = int(pids)
-    params = dict()
-    params['limits'] = limits
-    params['session_id'] = session_id
-    params['secret'] = secret
-    body = bytes(json.dumps(params), 'utf-8')
-    headers['Content-Length'] = str(len(body))
-    conn.request('POST', 'limits', body, headers)
-    with conn.getresponse() as response:
-        response_body = json.loads(response.read().decode('utf-8'))
+    if cpus is not None or memory is not None or pids is not None: 
+        limits = dict()
+        if cpus is not None:
+            limits['cpus'] = int(cpus)
+        if cpus_offset is not None:
+            limits['cpus_offset'] = int(cpus_offset)
+        if memory is not None:
+            limits['memory'] = int(memory)
+        if pids is not None:
+            limits['pids'] = int(pids)
+        params = dict()
+        params['limits'] = limits
+        params['session_id'] = session_id
+        params['secret'] = secret
+        body = bytes(json.dumps(params), 'utf-8')
+        headers['Content-Length'] = str(len(body))
+        conn.request('POST', 'limits', body, headers)
+        with conn.getresponse() as response:
+            response_body = json.loads(response.read().decode('utf-8'))
     conn.close()
     return session_id, secret
 
@@ -182,19 +183,24 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     for field in [ 'id', 'stdout', 'stderr' ]:
         if field in task:
             summary[field] = task[field]
+    summary['limits'] = dict()
+    if cpus is not None:
+        summary['limits']['cpus'] = cpus
+    if cpus_offset is not None:
+        summary['limits']['cpus_offset'] = cpus_offset
+    if memory is not None:
+        summary['limits']['memory'] = memory
+    if pids is not None:
+        summary['limits']['pids'] = pids
 
     observer = None
-    if cpus is not None or memory is not None or pids is not None: 
+    if os.path.exists(OBSERVER_SOCKET):
         observer = observer_start(cpus, cpus_offset, memory, pids)
-        summary['limits'] = dict()
-        if cpus is not None:
-            summary['limits']['cpus'] = cpus
-        if cpus_offset is not None:
-            summary['limits']['cpus_offset'] = cpus_offset
-        if memory is not None:
-            summary['limits']['memory'] = memory
-        if pids is not None:
-            summary['limits']['pids'] = pids
+        logging.info('Using Kolejka Observer to limit task and collect stats.')
+    else
+        if cpus is not None or memory is not None or pids is not None:
+            logging.error('Can\'t limit task without Kolejka Observer running.')
+            sys.exit(1)
 
     stdin_path = '/dev/null'
     stdout_path = '/dev/null'

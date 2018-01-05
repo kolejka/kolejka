@@ -133,6 +133,12 @@ class KolejkaClient:
         return response.status_code == 200
 
     def task_put(self, task):
+        task.limits.cpus.update(self.config.cpus)
+        task.limits.memory.update(self.config.memory)
+        task.limits.pids.update(self.config.pids)
+        task.limits.storage.update(self.config.storage)
+        task.limits.time.update(self.config.time)
+        task.limits.network.update(self.config.network)
         if not self.instance_session:
             self.login() 
         for k,f in task.files.items():
@@ -271,6 +277,12 @@ def config_parser_blob(parser):
 
 def config_parser_task_put(parser):
     parser.add_argument("task", type=str, help='task folder')
+    parser.add_argument('--cpus', type=int, help='cpus limit')
+    parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--pids', type=int, help='pids limit')
+    parser.add_argument('--storage', action=MemoryAction, help='storage limit')
+    parser.add_argument('--time', action=TimeAction, help='time limit')
+    parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
@@ -347,6 +359,12 @@ def config_parser_execute(parser):
     parser.add_argument("result", type=str, help='result folder')
     parser.add_argument('--interval', type=float, default=5, help='result query interval (in seconds)')
     parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.add_argument('--cpus', type=int, help='cpus limit')
+    parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--pids', type=int, help='pids limit')
+    parser.add_argument('--storage', action=MemoryAction, help='storage limit')
+    parser.add_argument('--time', action=TimeAction, help='time limit')
+    parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()

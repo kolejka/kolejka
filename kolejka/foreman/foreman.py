@@ -55,6 +55,7 @@ def foreman():
     limits.pids = config.pids
     limits.storage = config.storage
     limits.time = config.time
+    limits.network = config.network
     client = KolejkaClient()
     while True:
         try:
@@ -117,6 +118,7 @@ def config_parser(parser):
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
+    parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
         kolejka_config(args=args)
         foreman()

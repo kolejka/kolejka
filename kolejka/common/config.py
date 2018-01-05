@@ -59,6 +59,12 @@ class KolejkaConfig:
         self.client.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
         self.client.__setattr__('username', client_config.get('username', default_config.get('username', None)))
         self.client.__setattr__('password', client_config.get('password', default_config.get('password', None)))
+        self.client.__setattr__('cpus', parse_int(client_config.get('cpus', default_config.get('cpus', None))))
+        self.client.__setattr__('memory', parse_memory(client_config.get('memory', default_config.get('memory', None))))
+        self.client.__setattr__('storage', parse_memory(client_config.get('storage', default_config.get('storage', None))))
+        self.client.__setattr__('pids', parse_int(client_config.get('pids', default_config.get('pids', None))))
+        self.client.__setattr__('time', parse_time(client_config.get('time', default_config.get('time', None))))
+        self.client.__setattr__('network', parse_bool(client_config.get('network', default_config.get('network', None))))
 
         self.foreman.__setattr__('temp_path', foreman_config.get('temp', default_config.get('temp', None)))
         self.foreman.__setattr__('interval', parse_float(foreman_config.get('interval', default_config.get('interval', None) or FOREMAN_INTERVAL)))
@@ -68,6 +74,7 @@ class KolejkaConfig:
         self.foreman.__setattr__('storage', parse_memory(foreman_config.get('storage', default_config.get('storage', None))))
         self.foreman.__setattr__('pids', parse_int(foreman_config.get('pids', default_config.get('pids', None))))
         self.foreman.__setattr__('time', parse_time(foreman_config.get('time', default_config.get('time', None))))
+        self.foreman.__setattr__('network', parse_bool(foreman_config.get('network', default_config.get('network', None))))
         self.foreman.__setattr__('auto_tags', parse_bool(foreman_config.get('auto_tags', default_config.get('auto_tags', []))))
         tags = parse_str_list(foreman_config.get('tags', default_config.get('tags', None) or []))
         if self.foreman.auto_tags:
@@ -85,6 +92,7 @@ class KolejkaConfig:
         self.worker.__setattr__('storage', parse_memory(worker_config.get('storage', default_config.get('storage', None))))
         self.worker.__setattr__('pids', parse_int(worker_config.get('pids', default_config.get('pids', None))))
         self.worker.__setattr__('time', parse_time(worker_config.get('time', default_config.get('time', None))))
+        self.worker.__setattr__('network', parse_bool(worker_config.get('network', default_config.get('network', None))))
 
 _config = None
 def _configure(config_file=None, config=None, args=None, **kwargs):

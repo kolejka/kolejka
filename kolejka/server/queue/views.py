@@ -40,6 +40,10 @@ def dequeue(request):
                 continue
             if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
                 continue
+            if resources.network is not None and (tt.limits.network is None or tt.limits.network and not resources.network):
+                continue
+            if resources.time is not None and (tt.limits.time is None or tt.limits.time > resources.time):
+                continue
             tasks.append(tt.dump())
             t.assignee = request.user
             t.save()

@@ -32,6 +32,15 @@ def task(request, key):
                 if not request.user.is_superuser and request.user != ref.user:
                     return HttpResponseForbidden()
             refs.append(ref)
+        limits = KolejkaLimits(
+                cpus=settings.LIMIT_CPUS,
+                memory=settings.LIMIT_MEMORY,
+                pids=settings.LIMIT_PIDS,
+                storage=settings.LIMIT_STORAGE,
+                network=settings.LIMIT_NETWORK,
+                time=settings.LIMIT_TIME,
+            )
+        t.limits.update(limits)
 
         task = models.Task(user=request.user, key=t.id, description=json.dumps(t.dump()))
         task.save()

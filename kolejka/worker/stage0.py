@@ -49,6 +49,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits.pids = config.pids
     limits.storage = config.storage
     limits.time = config.time
+    limits.network = config.network
     task.limits.update(limits)
 
     docker_task = 'kolejka_worker_{}'.format(task.id)
@@ -86,6 +87,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                     shutil.copy(src_path, dst_path)
                 jailed.files.add(key)
         jailed.files.add(TASK_SPEC)
+        jailed.limits = KolejkaLimits() #TODO: Task is limited by docker, no need to limit it again?
         jailed.commit()
         volumes.append((jailed.path, os.path.join(WORKER_DIRECTORY, 'task'), 'rw'))
         if consume_task_folder:
@@ -223,6 +225,7 @@ def config_parser(parser):
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
+    parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
         kolejka_config(args=args)
         config = worker_config()
