@@ -5,6 +5,8 @@ Welcome to _kolejka_
 
 Each task is described by a set of files, and a command to run in a docker container.
 
+See our [quickstart guide](wiki/Quickstart) if you want to quickly execute some tasks.
+
 Example
 -------
 For example, the following task executes command `uname` in a standard ubuntu container with reasonable time/cpu/mem limits and collects standard output.
@@ -41,7 +43,7 @@ The result of running this task in our system is described by two files:
 Linux
 ```
 
-You can check our [Task](https://github.com/kolejka/kolejka/wiki/Task), and [Result](https://github.com/kolejka/kolejka/wiki/Result) specification and see other [Examples](https://github.com/kolejka/kolejka/wiki/Examples).
+You can check our [Task](wiki/Task), and [Result](wiki/Result) specification and see other [Examples](wiki/Examples).
 
 Usage
 -----
@@ -64,7 +66,7 @@ $ kolejka-client result get TASK_KEY
 ```
 $ kolejka-server runserver
 ```
-More details on Server installation and maintenance can be found in [Server Documentation](https://github.com/kolejka/kolejka/wiki/Server).
+More details on Server installation and maintenance can be found in [Server Documentation](wiki/Server).
 You need to run Kolejka Foreman system on the grid nodes.
 
 You can use `kolejka-worker` to run tasks on your own computer. You need to install and run `docker-ce` and `kolejka-observer` in your system.
@@ -84,11 +86,11 @@ Subsystems
 
 The platform is divided into the following subsystems:
 
-* [Server](https://github.com/kolejka/kolejka/wiki/Server) - Stores files and descriptions of tasks and results. Schedules execution of tasks. Defines security and access rights. Runs post-execution steps.
-* [Client](https://github.com/kolejka/kolejka/wiki/Client) - CLI and a set of convenience wrappers.
-* [Worker](https://github.com/kolejka/kolejka/wiki/Worker) - A script that runs a single task and collects the result.
-* [Observer](https://github.com/kolejka/kolejka/wiki/Observer) - A standalone server that allows docker contained applications to do basic cgroups-based system usage accounting.
-* [Foreman](https://github.com/kolejka/kolejka/wiki/Foreman) - An operating system image that controls one node in the grid - uses all system resources to run Workers.
+* [Server](wiki/Server) - Stores files and descriptions of tasks and results. Schedules execution of tasks. Defines security and access rights. Runs post-execution steps.
+* [Client](wiki/Client) - CLI and a set of convenience wrappers.
+* [Worker](wiki/Worker) - A script that runs a single task and collects the result.
+* [Observer](wiki/Observer) - A standalone server that allows docker contained applications to do basic cgroups-based system usage accounting.
+* [Foreman](wiki/Foreman) - An operating system image that controls one node in the grid - uses all system resources to run Workers.
 
 Acknowledgments
 ---------------
