@@ -197,7 +197,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     if os.path.exists(OBSERVER_SOCKET):
         observer = observer_start(cpus, cpus_offset, memory, pids)
         logging.info('Using Kolejka Observer to limit task and collect stats.')
-    else
+    else:
         if cpus is not None or memory is not None or pids is not None:
             logging.error('Can\'t limit task without Kolejka Observer running.')
             sys.exit(1)
