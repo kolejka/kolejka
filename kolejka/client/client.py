@@ -10,6 +10,7 @@ import time
 
 from kolejka.common import kolejka_config, client_config
 from kolejka.common import KolejkaTask, KolejkaResult
+from kolejka.common import MemoryAction, TimeAction
 
 class KolejkaClient:
     def __init__(self):
