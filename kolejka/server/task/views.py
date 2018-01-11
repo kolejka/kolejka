@@ -7,7 +7,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseNotAllowed, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from kolejka.common import KolejkaTask, KolejkaResult
+from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.server.blob.models import Reference
 
 from . import models

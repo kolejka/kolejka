@@ -9,7 +9,7 @@ import sys
 import time
 
 from kolejka.common import kolejka_config, client_config
-from kolejka.common import KolejkaTask, KolejkaResult
+from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction
 
 class KolejkaClient:
@@ -134,12 +134,14 @@ class KolejkaClient:
         return response.status_code == 200
 
     def task_put(self, task):
-        task.limits.cpus.update(self.config.cpus)
-        task.limits.memory.update(self.config.memory)
-        task.limits.pids.update(self.config.pids)
-        task.limits.storage.update(self.config.storage)
-        task.limits.time.update(self.config.time)
-        task.limits.network.update(self.config.network)
+        limits = KolejkaLimits()
+        limits.cpus = self.config.cpus
+        limits.memory = self.config.memory
+        limits.pids = self.config.pids
+        limits.storage = self.config.storage
+        limits.time = self.config.time
+        limits.network = self.config.network
+        task.limits.update(limits)
         if not self.instance_session:
             self.login() 
         for k,f in task.files.items():

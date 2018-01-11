@@ -5,7 +5,7 @@ import json
 import os
 
 from .settings import TASK_SPEC, RESULT_SPEC
-from .parse import parse_time, parse_memory, parse_int, parse_float, parse_str
+from .parse import parse_time, parse_memory, parse_int, parse_float, parse_str, parse_bool
 from .parse import unparse_time, unparse_memory
 from .parse import json_dict_load
 from .limits import KolejkaLimits, KolejkaStats
