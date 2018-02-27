@@ -156,7 +156,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                 logging.warning('Failed to chmod {}'.format(abspath))
                 pass
 
-    task = {}
+    task = dict()
     task_spec_path = os.path.join(task_path, TASK_SPEC)
     with open(task_spec_path) as task_spec_file:
         task = json.load(task_spec_file)

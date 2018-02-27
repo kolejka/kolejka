@@ -22,7 +22,7 @@ TASK_SPEC = 'kolejka_task.json'
 
 RESULT_SPEC = 'kolejka_result.json'
 
-WORKER_DIRECTORY = '/opt/kolejka'
+WORKER_DIRECTORY = '/var/lib/kolejka'
 
 WORKER_HOSTNAME = 'kolejka'
 

@@ -5,8 +5,7 @@ import json
 import os
 
 from .settings import TASK_SPEC, RESULT_SPEC
-from .parse import parse_time, parse_memory, parse_int, parse_float, parse_str, parse_bool
-from .parse import unparse_time, unparse_memory
+from .parse import parse_int, parse_str, parse_bool
 from .parse import json_dict_load
 from .limits import KolejkaLimits, KolejkaStats
 
@@ -51,7 +50,7 @@ class KolejkaFiles:
             if self.path is not None:
                 return open(os.path.join(path or os.getcwd(), self.path), mode)
 
-    def __init__(self, path=None, data={}):
+    def __init__(self, path=None, data=None):
         self.path = path
         self.files = dict()
         self.load(data)
@@ -63,14 +62,14 @@ class KolejkaFiles:
 
     def dump(self):
         res = list()
-        for name, f in self.files.items():
-            res.append(f.dump())
+        for file_spec in self.files.values():
+            res.append(file_spec.dump())
         return res
 
     @property
     def is_local(self):
-        for name, f in self.files.items():
-            if not f.is_local():
+        for file_spec in self.files.values():
+            if not file_spec.is_local():
                 return False
         return True
 
@@ -78,8 +77,8 @@ class KolejkaFiles:
     def is_contained(self):
         if self.path is None:
             return False
-        for name, f in self.files.items():
-            if not f.is_contained(self.path):
+        for file_spec in self.files.values():
+            if not file_spec.is_contained(self.path):
                 return False
         return True
 

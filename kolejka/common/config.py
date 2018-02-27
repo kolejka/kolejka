@@ -56,7 +56,6 @@ class KolejkaConfig:
         worker_config = raw_config.get('worker', dict())
 
         self.client.__setattr__('server', client_config.get('server', default_config.get('server', None) or CONFIG_SERVER))
-        self.client.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
         self.client.__setattr__('username', client_config.get('username', default_config.get('username', None)))
         self.client.__setattr__('password', client_config.get('password', default_config.get('password', None)))
         self.client.__setattr__('cpus', parse_int(client_config.get('cpus', default_config.get('cpus', None))))
@@ -86,7 +85,6 @@ class KolejkaConfig:
         self.worker.__setattr__('debug', parse_bool(worker_config.get('debug', default_config.get('debug', None) or False)))
         self.worker.__setattr__('verbose', parse_bool(worker_config.get('verbose', default_config.get('verbose', None) or False)))
         self.worker.__setattr__('temp_path', worker_config.get('temp', default_config.get('temp', None)))
-        self.worker.__setattr__('repository', client_config.get('repository', default_config.get('repository', None) or CONFIG_REPOSITORY))
         self.worker.__setattr__('cpus', parse_int(worker_config.get('cpus', default_config.get('cpus', None))))
         self.worker.__setattr__('memory', parse_memory(worker_config.get('memory', default_config.get('memory', None))))
         self.worker.__setattr__('storage', parse_memory(worker_config.get('storage', default_config.get('storage', None))))

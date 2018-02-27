@@ -133,7 +133,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         for v in volumes:
             docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
         docker_call += [ '--workdir', WORKER_DIRECTORY ]
-        docker_image = '/'.join( [ a for a in [ config.repository.rstrip('/'), task.image.lstrip('/') ] if a ] )
+        docker_image = task.image
         docker_call += [ docker_image ]
         docker_call += [ '--consume' ]
         if config.debug:
