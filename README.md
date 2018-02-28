@@ -14,7 +14,7 @@ For example, the following task executes command `uname` in a standard ubuntu co
 * `kolejka_task.json`:
 ```json
 {
-    "image"  : "ubuntu:xenial",
+    "image"  : "kolejka/ubuntu:xenial",
     "args"   : [ "uname" ],
     "limits" : {
         "memory" : "64M",
