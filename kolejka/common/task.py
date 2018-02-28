@@ -119,7 +119,7 @@ class KolejkaFiles:
         self.load(data)
 
     def load(self, data):
-        args = json_dict_load(data)
+        args = json_list_load(data)
         for arg in args:
             self.add(arg)
 
@@ -215,6 +215,7 @@ class KolejkaTask():
         if self.stderr is not None:
             res['stderr'] = self.stderr
         res['files'] = self.files.dump()
+        res['collect'] = self.collect.dump()
         return res
     
     def commit(self):

@@ -211,11 +211,11 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         stdin_path = os.path.join(task_path, task_stdin)
     if task_stdout is not None:
         stdout_path = os.path.join(result_path, task_stdout)
-        summary['files'][task_stdout] = task_stdout
+        summary['files'].append(task_stdout)
     if task_stderr is not None:
         if task_stderr != task_stdout:
             stderr_path = os.path.join(result_path, task_stderr)
-            summary['files'][task_stderr] = task_stderr
+            summary['files'].append(task_stderr)
 
     with open(stdin_path, 'rb') as stdin_file:
         with open(stdout_path, 'wb') as stdout_file:
@@ -247,7 +247,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     for collect in task.get('collect', []):
         collect_glob = str(collect.get('glob'))
         collect_strip = int(collect.get('strip', 0))
-        collect_prefix = str(collect.get('prefix'))
+        collect_prefix = str(collect.get('prefix', ''))
         for f in glob.iglob(collect_glob, recursive=True):
             if os.path.isfile(f):
                 split = f.strip('/').split('/')

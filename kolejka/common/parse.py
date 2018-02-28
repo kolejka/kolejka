@@ -102,26 +102,30 @@ def parse_str_list(x, separator=','):
 
 def json_dict_load(data):
     res = dict()
-    if isinstance(data, dict):
+    if data is None:
+        pass
+    elif isinstance(data, dict):
         res = copy.copy(data)
     elif isinstance(data, str):
         res = json.loads(data)
     elif isinstance(data, bytes):
         res = json.loads(str(data, "utf-8"))
-    else
+    else:
         res = json.load(data)
     assert isinstance(res, dict)
     return res
 
 def json_list_load(data):
     res = list()
-    if isinstance(data, list):
+    if data is None:
+        pass
+    elif isinstance(data, list):
         res = copy.copy(data)
     elif isinstance(data, str):
         res = json.loads(data)
     elif isinstance(data, bytes):
         res = json.loads(str(data, "utf-8"))
-    else
+    else:
         res = json.load(data)
     assert isinstance(res, list)
     return res
