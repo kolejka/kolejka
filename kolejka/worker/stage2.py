@@ -180,7 +180,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         pids = task_pids
     
     summary = dict()
-    summary['files'] = list()
+    summary['files'] = dict()
     summary_spec_path = os.path.join(result_path, RESULT_SPEC)
     for field in [ 'id', 'stdout', 'stderr' ]:
         if field in task:
@@ -211,11 +211,13 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         stdin_path = os.path.join(task_path, task_stdin)
     if task_stdout is not None:
         stdout_path = os.path.join(result_path, task_stdout)
-        summary['files'].append(task_stdout)
+        summary['files'][task_stdout] = dict()
+        summary['files'][task_stdout]['path'] = task_stdout
     if task_stderr is not None:
         if task_stderr != task_stdout:
             stderr_path = os.path.join(result_path, task_stderr)
-            summary['files'].append(task_stderr)
+            summary['files'][task_stderr] = dict()
+            summary['files'][task_stderr]['path'] = task_stderr
 
     with open(stdin_path, 'rb') as stdin_file:
         with open(stdout_path, 'wb') as stdout_file:
@@ -260,7 +262,8 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                     shutil.move(f, dest)
                 else:
                     shutil.copy(f, dest)
-                summary['files'].append(strip)
+                summary['files'][strip] = dict()
+                summary['files'][strip]['path'] = strip
     os.chdir(orig_path)
 
     with open(summary_spec_path, 'w') as summary_spec_file:

@@ -74,30 +74,20 @@ class KolejkaCollect:
 
 class KolejkaFiles:
     class File:
-        def __init__(self, spec):
-            self.load(spec)
+        def __init__(self, name, spec):
+            self.load(name, spec)
 
-        def load(self, data):
-            self.name = data.split(':')[0].split('@')[0]
-            self.path = None
-            self.reference = None
-            simple = True
-            if ':' in data:
-                self.path = data.split(':')[1].split(':')[0].split('@')[0]
-                simple = False
-            if '@' in data:
-                self.reference = data.split('@')[1].split(':')[0].split('@')[0]
-                simple = False
-            if simple:
-                self.path = self.name
+        def load(self, name, data):
+            self.name = name
+            self.path = data.get('path', None)
+            self.reference = data.get('reference', None)
 
         def dump(self):
-            res = self.name
+            res = dict()
             if self.path is not None:
-                if self.path != self.name or self.reference is not None:
-                    res += ':' + self.path
+                res['path'] = self.path
             if self.reference is not None:
-                res += '@' + self.reference
+                res['reference'] = self.reference
             return res
 
         def is_local(self):
@@ -119,14 +109,14 @@ class KolejkaFiles:
         self.load(data)
 
     def load(self, data):
-        args = json_list_load(data)
-        for arg in args:
-            self.add(arg)
+        args = json_dict_load(data)
+        for name, arg in args.items():
+            self.add(name, arg)
 
     def dump(self):
-        res = list()
-        for file_spec in self.files.values():
-            res.append(file_spec.dump())
+        res = dict()
+        for name, file_spec in self.items():
+            res[name] = file_spec.dump()
         return res
 
     @property
@@ -148,13 +138,18 @@ class KolejkaFiles:
     def items(self):
         return self.files.items()
 
-    def add(self, spec):
-        f = KolejkaFiles.File(spec)
-        self.files[f.name] = f
+    def add(self, name, spec=None):
+        if spec is None:
+            spec = name
+        if isinstance(spec, str):
+            s = dict()
+            s['path'] = spec
+            spec = s
+        f = KolejkaFiles.File(name, spec)
+        self.files[name] = f
 
-    def remove(self, spec):
-        f = KolejkaFiles.File(spec)
-        if f.name in self.files:
+    def remove(self, name):
+        if name in self.files:
             del self.files[f.name]
 
     def clear(self):
@@ -192,7 +187,7 @@ class KolejkaTask():
         self.stdout = parse_str(args.get('stdout', None))
         self.stderr = parse_str(args.get('stderr', None))
         self.files = KolejkaFiles(self.path)
-        self.files.load(args.get('files', []))
+        self.files.load(args.get('files', {}))
         self.collect = KolejkaCollect()
         self.collect.load(args.get('collect', []))
 
@@ -251,7 +246,7 @@ class KolejkaResult():
         self.stdout = parse_str(args.get('stdout', None))
         self.stderr = parse_str(args.get('stderr', None))
         self.files = KolejkaFiles(self.path)
-        self.files.load(args.get('files', []))
+        self.files.load(args.get('files', {}))
 
     def dump(self):
         res = dict()
