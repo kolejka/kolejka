@@ -1,13 +1,76 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import copy
+import glob
 import json
 import os
 
 from .settings import TASK_SPEC, RESULT_SPEC
 from .parse import parse_int, parse_str, parse_bool
-from .parse import json_dict_load
+from .parse import json_dict_load, json_list_load
 from .limits import KolejkaLimits, KolejkaStats
+
+class KolejkaCollect:
+    class Collect:
+        def __init__(self, **kwargs):
+            self.load(kwargs)
+
+        def load(self, data, **kwargs):
+            args = json_dict_load(data)
+            args.update(kwargs)
+            self.glob = parse_str(args.get('glob'))
+            self.strip = parse_int(args.get('strip', 0))
+            self.prefix = parse_str(args.get('prefix', '')).strip('/')
+
+        def dump(self):
+            res = dict()
+            res['glob'] = self.glob
+            if self.strip > 0:
+                res['strip'] = self.strip
+            if self.prefix:
+                res['prefix'] = self.prefix
+            return res
+
+        def collect(self, path=None):
+            res = dict()
+            if path:
+                orig_path = os.getcwd()
+                os.chdir(path)
+            try:
+                for f in glob.iglob(self.glob, recursive=True):
+                    if os.path.isfile(f):
+                        splited = f.split('/')
+                        splited = splited[min(self.strip, len(splited)-1):]
+                        striped = '/'.join(splited).strip('/')
+                        if self.prefix:
+                            striped = os.path.join(self.prefix, striped)
+                        res[striped] = os.path.abspath(f)
+            finally:
+                if path:
+                    os.chdir(orig_path)
+            return res
+
+    def __init__(self):
+        self.load(list())
+
+    def load(self, data):
+        self.collect = list()
+        for c in json_list_load(data):
+            cc = KolejkaCollect.Collect()
+            cc.load(c)
+            self.collect.append(cc)
+
+    def dump(self):
+        res = list()
+        for c in self.collect:
+            res.append(c.dump())
+        return res
+
+    def collect(self, path=None):
+        res = dict()
+        for c in self.collect:
+            res.update(c.collect(path))
+        return res
 
 class KolejkaFiles:
     class File:
@@ -130,6 +193,8 @@ class KolejkaTask():
         self.stderr = parse_str(args.get('stderr', None))
         self.files = KolejkaFiles(self.path)
         self.files.load(args.get('files', []))
+        self.collect = KolejkaCollect()
+        self.collect.load(args.get('collect', []))
 
     def dump(self):
         res = dict()

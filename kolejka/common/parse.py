@@ -80,7 +80,7 @@ def parse_bool(x):
     if x is not None:
         if isinstance(x, bool):
             return x
-        return str(x).lower().strip() in [ 'true', 'yes', '1' ]
+        return str(x).lower().strip() not in [ 'false', 'no', '0' ]
 
 def parse_int(x):
     if x is not None:
@@ -101,12 +101,27 @@ def parse_str_list(x, separator=','):
         return [ xe.strip() for xe in str(x).split(separator) if xe.strip() ]
 
 def json_dict_load(data):
+    res = dict()
     if isinstance(data, dict):
-        return copy.copy(data)
+        res = copy.copy(data)
+    elif isinstance(data, str):
+        res = json.loads(data)
+    elif isinstance(data, bytes):
+        res = json.loads(str(data, "utf-8"))
+    else
+        res = json.load(data)
+    assert isinstance(res, dict)
+    return res
+
+def json_list_load(data):
+    res = list()
     if isinstance(data, list):
-        return copy.copy(data)
-    if isinstance(data, str):
-        return json.loads(data)
-    if isinstance(data, bytes):
-        return json.loads(str(data, "utf-8"))
-    return json.load(data)
+        res = copy.copy(data)
+    elif isinstance(data, str):
+        res = json.loads(data)
+    elif isinstance(data, bytes):
+        res = json.loads(str(data, "utf-8"))
+    else
+        res = json.load(data)
+    assert isinstance(res, list)
+    return res
