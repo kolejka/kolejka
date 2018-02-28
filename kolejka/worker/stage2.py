@@ -3,6 +3,7 @@
 #THIS SCRIPT MAY IMPORT ONLY STANDARD LIBRARY MODULES
 
 import argparse
+import glob
 import http.client
 import json
 import logging
@@ -179,6 +180,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         pids = task_pids
     
     summary = dict()
+    summary['files'] = list()
     summary_spec_path = os.path.join(result_path, RESULT_SPEC)
     for field in [ 'id', 'stdout', 'stderr' ]:
         if field in task:
@@ -203,31 +205,17 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
             sys.exit(1)
 
     stdin_path = '/dev/null'
-    stdout_path = '/dev/null'
-    stderr_path = '/dev/null'
+    stdout_path = '/dev/stdout'
+    stderr_path = '/dev/stderr'
     if task_stdin is not None:
         stdin_path = os.path.join(task_path, task_stdin)
     if task_stdout is not None:
         stdout_path = os.path.join(result_path, task_stdout)
+        summary['files'][task_stdout] = task_stdout
     if task_stderr is not None:
         if task_stderr != task_stdout:
             stderr_path = os.path.join(result_path, task_stderr)
-
-    rrp = os.path.realpath(result_path)
-    trp = os.path.join(task_path, 'result')
-    if os.path.islink(trp):
-        logging.info('Removing {}'.format(trp))
-        os.unlink(trp)
-    trrp = os.path.realpath(trp)
-    if trrp != rrp:
-        if os.path.islink(trp) or os.path.isfile(trp):
-            logging.info('Removing {}'.format(trp))
-            os.unlink(trp)
-        elif os.path.isdir(trp):
-            logging.info('Removing {}'.format(trp))
-            shutil.rmtree(trp)
-        logging.debug('Creating symlink {} -> {}'.format(trrp, rrp))
-        os.symlink(rrp, trrp)
+            summary['files'][task_stderr] = task_stderr
 
     with open(stdin_path, 'rb') as stdin_file:
         with open(stdout_path, 'wb') as stdout_file:
@@ -253,14 +241,28 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     if observer:
         summary['stats'] = observer_stop(*observer)
     summary['result'] = result.returncode
-    summary['files'] = list()
-    for dirpath, dirnames, filenames in os.walk(result_path):
-        for filename in filenames:
-            abspath = os.path.join(dirpath, filename)
-            realpath = os.path.realpath(abspath)
-            if realpath.startswith(os.path.realpath(result_path)+'/'):
-                relpath = abspath[len(result_path)+1:]
-                summary['files'].append(relpath)
+
+    orig_path = os.getcwd()
+    os.chdir(task_path)
+    for collect in task.get('collect', []):
+        collect_glob = str(collect.get('glob'))
+        collect_strip = int(collect.get('strip', 0))
+        collect_prefix = str(collect.get('prefix'))
+        for f in glob.iglob(collect_glob, recursive=True):
+            if os.path.isfile(f):
+                split = f.strip('/').split('/')
+                split = split[min(collect_strip, len(split)-1):]
+                strip = '/'.join(split)
+                strip = os.path.join(collect_prefix.strip('/'), strip)
+                dest = os.path.join(result_path, strip)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                if consume:
+                    shutil.move(f, dest)
+                else:
+                    shutil.copy(f, dest)
+                summary['files'].append(strip)
+    os.chdir(orig_path)
+
     with open(summary_spec_path, 'w') as summary_spec_file:
         json.dump(summary, summary_spec_file, sort_keys=True, indent=2, ensure_ascii=False)
 
@@ -290,8 +292,6 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
 
     if consume:
         for entry in os.listdir(task_path):
-            if entry == 'result' and trrp == rrp:
-                continue
             try:
                 entry = os.path.join(task_path, entry)
                 if os.path.islink(entry) or os.path.isfile(entry):
@@ -300,11 +300,6 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                     shutil.rmtree(entry)
             except:
                 pass
-    if trrp != rrp:
-        try:
-            os.unlink(trrp)
-        except:
-            pass
 
     sys.exit(result.returncode)
 
