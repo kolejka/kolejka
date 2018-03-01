@@ -60,9 +60,9 @@ if [ -e /var/lib/docker/nuke-graph-directory.sh ]; then
 fi
 rm -rf /var/lib/docker
 mkdir -p /var/lib/docker
-dd if=/dev/zero of=/tmp/docker.btrfs bs=$[1024*1024] count=$[16*1024]
-mkfs.btrfs /tmp/docker.btrfs
-mount -o loop /tmp/docker.btrfs /var/lib/docker
+dd if=/dev/zero of=/tmp/docker.xfs bs=$[1024*1024] count=$[16*1024]
+mkfs.xfs -f /tmp/docker.xfs
+mount -o loop,uquota,pquota /tmp/docker.xfs /var/lib/docker
 systemctl start docker
 
 # KOLEJKA
