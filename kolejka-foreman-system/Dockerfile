@@ -54,7 +54,11 @@ RUN apt-get -f -y install \
         squashfs-tools \
         ssh \
         vim \
-        vlan
+        vlan \
+        xfsprogs
 
 COPY rc.local /etc/rc.local
 RUN chmod 755 /etc/rc.local
+
+RUN mkdir /etc/kolejka
+COPY kolejka.conf /etc/kolejka/kolejka.conf
