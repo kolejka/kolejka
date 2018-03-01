@@ -32,9 +32,9 @@ The result of running this task in our system is described by two files:
 ```json
 {
     "result" : 0,
-    "files"  : [
-        "stdout.txt"
-    ]
+    "files"  : {
+        "stdout.txt" : { "path" : "stdout.txt" }
+    }
 }
 ```
 
