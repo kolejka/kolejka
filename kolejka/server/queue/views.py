@@ -3,12 +3,14 @@
 import json
 
 import django.conf
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseNotAllowed
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from kolejka.common import KolejkaLimits
 from kolejka.server.task.models import Task
 
+@transaction.atomic
 def dequeue(request):
     if request.method == 'POST':
         if not request.user.is_authenticated():
