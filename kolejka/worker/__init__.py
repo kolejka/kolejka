@@ -8,6 +8,7 @@ def main():
     import setproctitle
     from kolejka.worker.stage0 import config_parser as stage0_parser
     from kolejka.worker.stage2 import config_parser as stage2_parser
+    from kolejka.worker.volume import config_parser as volume_parser
 
     setproctitle.setproctitle('kolejka-worker')
     parser = argparse.ArgumentParser(description='KOLEJKA worker')
@@ -21,6 +22,8 @@ def main():
     stage0_parser(subparser)
     subparser = subparsers.add_parser('stage2') #TODO: find proper name
     stage2_parser(subparser)
+    subparser = subparsers.add_parser('volume')
+    volume_parser(subparser)
     args = parser.parse_args()
     level=logging.WARNING
     if args.verbose:

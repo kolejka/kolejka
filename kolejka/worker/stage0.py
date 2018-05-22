@@ -15,11 +15,12 @@ import tempfile
 import time
 import uuid
 
-from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_DIRECTORY
+from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_DIRECTORY, WORKER_PYTHON_VOLUME
 from kolejka.common import kolejka_config, worker_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import ControlGroupSystem
 from kolejka.common import MemoryAction, TimeAction
+from kolejka.worker.volume import check_python_volume
 
 def silent_call(*args, **kwargs):
     kwargs['stdin'] = kwargs.get('stdin', subprocess.DEVNULL)
@@ -71,6 +72,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         jailed.load(task.dump())
         jailed.files.clear()
         volumes = list()
+        check_python_volume()
         if os.path.exists(OBSERVER_SOCKET):
             volumes.append((OBSERVER_SOCKET, OBSERVER_SOCKET, 'rw'))
         else:
@@ -130,6 +132,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--pids-limit', str(task.limits.pids) ]
         if task.limits.time is not None:
             docker_call += [ '--stop-timeout', str(int(math.ceil(task.limits.time.total_seconds()))) ]
+        docker_call += [ '--volume', '{}:{}:{}'.format(WORKER_PYTHON_VOLUME, os.path.join(WORKER_DIRECTORY, 'python3'), 'ro') ]
         for v in volumes:
             docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
         docker_call += [ '--workdir', WORKER_DIRECTORY ]

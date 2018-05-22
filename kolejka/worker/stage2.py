@@ -169,6 +169,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     task_cpus_offset = parse_int(task.get('limits', dict()).get('cpus_offset', None))
     task_memory = parse_memory(task.get('limits', dict()).get('memory', None))
     task_pids = parse_int(task.get('limits', dict()).get('pids', None))
+    task_env = task.get('environment', dict())
 
     if task_cpus is not None and (cpus is None or task_cpus < cpus):
         cpus = task_cpus
@@ -232,11 +233,19 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                         kwargs['stderr'] = stderr_file
                     else:
                         kwargs['stderr'] = subprocess.STDOUT
-                logging.info('Executing task {} < {} > {} 2> {}'.format(task_args, task_stdin, task_stdout, task_stderr))
+                env = dict()
+                env['IFS'] = ' '
+                env['PATH'] = '/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin'
+                env['PWD'] = task_path
+                env['USER'] = 'root'
+                env['HOME'] = task_path
+                env.update(task_env)
+                logging.info('Executing task {} < {} > {} 2> {} (Env: {})'.format(task_args, task_stdin, task_stdout, task_stderr, env))
                 result = subprocess.run(
                     args=task_args,
                     start_new_session=True,
                     cwd=task_path,
+                    env=env,
                     **kwargs
                 )
                 logging.info('Execution return code {}'.format(result.returncode))

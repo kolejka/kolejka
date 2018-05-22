@@ -26,6 +26,8 @@ WORKER_DIRECTORY = '/var/lib/kolejka'
 
 WORKER_HOSTNAME = 'kolejka'
 
+WORKER_PYTHON_VOLUME = 'kolejka_python'
+
 FOREMAN_CONCURENCY = 8
 
 FOREMAN_INTERVAL = 10
