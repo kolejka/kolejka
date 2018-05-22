@@ -129,10 +129,13 @@ class ControlGroupSystem:
             usage_file = os.path.join(self.mount_point('pids'), groups['pids'].strip('/'), 'pids.current')
             with open(usage_file) as f:
                 result.pids.usage = int(f.readline().strip())
-            usage_file = os.path.join(self.mount_point('pids'), groups['pids'].strip('/'), 'pids.events')
-            with open(usage_file) as f:
-                stats = dict([line.strip().split() for line in f.readlines()])
-                result.pids.failures = int(stats['max'])
+            try:
+                usage_file = os.path.join(self.mount_point('pids'), groups['pids'].strip('/'), 'pids.events')
+                with open(usage_file) as f:
+                    stats = dict([line.strip().split() for line in f.readlines()])
+                    result.pids.failures = int(stats['max'])
+            except:
+                pass
         return result
 
     def pid_stats(self, pid=None):
