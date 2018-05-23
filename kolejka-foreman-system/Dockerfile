@@ -1,4 +1,4 @@
-FROM ubuntu:artful
+FROM ubuntu:bionic
 MAINTAINER KOLEJKA <kolejka@matinf.uj.edu.pl>
 ENTRYPOINT ["/bin/bash"]
 WORKDIR /root
@@ -10,9 +10,10 @@ ENV LANGUAGE en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
 RUN rm -f /etc/apt/sources.list.d/*
-RUN echo "deb     http://archive.ubuntu.com/ubuntu artful main restricted universe multiverse" > /etc/apt/sources.list && \
-    echo "deb     http://archive.ubuntu.com/ubuntu artful-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb     http://archive.ubuntu.com/ubuntu artful-security main restricted universe multiverse" >> /etc/apt/sources.list
+RUN echo "deb     http://archive.ubuntu.com/ubuntu/ bionic           main restricted universe multiverse" >  /etc/apt/sources.list && \
+    echo "deb     http://archive.ubuntu.com/ubuntu/ bionic-updates   main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb     http://archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb     http://security.ubuntu.com/ubuntu bionic-security  main restricted universe multiverse" >> /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get -f -y install \
         apt-transport-https \
@@ -24,7 +25,7 @@ RUN apt-get -f -y install \
 
 RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable" >> /etc/apt/sources.list && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-key 7EA0A9C3F273FCD8
-RUN echo "deb http://ppa.launchpad.net/kolejka/kolejka/ubuntu artful main" >> /etc/apt/sources.list && \
+RUN echo "deb http://ppa.launchpad.net/kolejka/kolejka/ubuntu bionic main" >> /etc/apt/sources.list && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-key EE527D561340007D
 RUN apt-get update && \
     apt-get -y dist-upgrade
