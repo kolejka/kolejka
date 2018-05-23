@@ -190,7 +190,11 @@ class Session:
 
     def close(self):
         try:
-            self.freeze(freeze=True)
+            self.kill()
+        except:
+            pass
+        try:
+            self.freeze(freeze=False)
         except:
             pass
         self.system.groups_close(self.groups)
@@ -246,8 +250,11 @@ class SessionRegistry:
     def close(self, session_id):
         if session_id not in self.sessions:
             return
-        self.sessions[session_id].close()
-        del self.sessions[session_id]
+        try:
+            self.sessions[session_id].close()
+            del self.sessions[session_id]
+        except:
+            pass
 
 class ObserverServer(socketserver.ThreadingMixIn, HTTPUnixServer):
     def __enter__(self, *args, **kwargs):
