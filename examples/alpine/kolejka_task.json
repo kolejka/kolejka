@@ -1,0 +1,14 @@
+{
+  "id": "example_alpine",
+  "image": "alpine:latest",
+  "files": {
+    "test.sh" : {
+        "path" : "test.sh"
+    }
+  },
+  "args": [
+    "./test.sh"
+  ],
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}

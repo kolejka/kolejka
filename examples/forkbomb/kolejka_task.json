@@ -1,0 +1,21 @@
+{
+  "id": "example_forkbomb",
+  "image": "gcc:latest",
+  "files": {
+    "test.sh" : {
+        "path" : "test.sh"
+    },
+    "example.cpp" : {
+        "path" : "example.cpp"
+    }
+  },
+  "args": [
+    "./test.sh"
+  ],
+  "limits": {
+      "time" : "10s",
+      "pids" : "512"
+  },
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "example_postgres",
+  "image": "postgres:10",
+  "environment" : {
+      "PATH" : "/usr/lib/postgresql/10/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
+      "PGDATA" : "/var/lib/postgresql/data",
+      "POSTGRES_PASSWORD" : "mysecretpassword"
+  },
+  "files": {
+    "test.py" : {
+        "path" : "test.py"
+    },
+    "test.sql" : {
+        "path" : "test.sql"
+    }
+  },
+  "args": [
+      "./test.py"
+  ],
+  "limits": {
+      "time" : "20s"
+  },
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}

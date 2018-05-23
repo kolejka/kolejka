@@ -1,0 +1,17 @@
+{
+  "id": "example_gcc",
+  "image": "gcc:latest",
+  "files": {
+    "test.sh" : {
+        "path" : "test.sh"
+    },
+    "example.cpp" : {
+        "path" : "example.cpp"
+    }
+  },
+  "args": [
+    "./test.sh"
+  ],
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}

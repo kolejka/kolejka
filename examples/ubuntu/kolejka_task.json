@@ -1,0 +1,14 @@
+{
+  "id": "example_ubuntu",
+  "image": "ubuntu:latest",
+  "files": {
+    "test.sh" : {
+        "path" : "test.sh"
+    }
+  },
+  "args": [
+    "./test.sh"
+  ],
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}
