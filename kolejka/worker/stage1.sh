@@ -17,6 +17,4 @@ if [ "${VERBOSE}" = "1" ]; then
     echo "Executing stage2" >/dev/stderr
 fi
 
-ls -Al . task result >/dev/stderr
-
 exec ./python3/python3 stage2.py "$@"

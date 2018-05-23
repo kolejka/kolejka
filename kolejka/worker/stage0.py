@@ -185,7 +185,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 except:
                     result.stats.time = None
                 break
-            if datetime.datetime.now() - start_time > task.limits.time + datetime.timedelta(seconds=2):
+            if task.limits.time is not None and datetime.datetime.now() - start_time > task.limits.time + datetime.timedelta(seconds=2):
                 docker_kill_run = subprocess.run([ 'docker', 'kill', docker_task ])
         subprocess.run(['docker', 'logs', cid], stdout=subprocess.PIPE)
         try:
