@@ -139,6 +139,7 @@ class KolejkaClient:
         limits.memory = self.config.memory
         limits.pids = self.config.pids
         limits.storage = self.config.storage
+        limits.image_size = self.config.image_size
         limits.time = self.config.time
         limits.network = self.config.network
         task.limits.update(limits)
@@ -284,6 +285,7 @@ def config_parser_task_put(parser):
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
+    parser.add_argument('--image-size', action=MemoryAction, help='image size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
@@ -366,6 +368,7 @@ def config_parser_execute(parser):
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
+    parser.add_argument('--image-size', action=MemoryAction, help='image size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):

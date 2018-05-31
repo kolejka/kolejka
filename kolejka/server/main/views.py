@@ -20,6 +20,7 @@ def settings(request):
                 memory=settings.LIMIT_MEMORY,
                 pids=settings.LIMIT_PIDS,
                 storage=settings.LIMIT_STORAGE,
+                image_size=settings.LIMIT_IMAGE_SIZE,
                 network=settings.LIMIT_NETWORK,
                 time=settings.LIMIT_TIME,
             )

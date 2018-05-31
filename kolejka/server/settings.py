@@ -89,9 +89,9 @@ LIMIT_PIDS = None
 LIMIT_STORAGE = None 
 LIMIT_NETWORK = None
 LIMIT_TIME = None
-LIMIT_IMAGE = None
+LIMIT_IMAGE_SIZE = None
 
-LIMIT_IMAGES = [
+LIMIT_IMAGE_NAME = [
         r'.*',
 ]
 

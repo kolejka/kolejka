@@ -1,6 +1,8 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import json
+import re
+import subprocess
 import uuid
 
 from django.conf import settings
@@ -21,7 +23,7 @@ def task(request, key):
         t = KolejkaTask(None)
         t.load(request.read())
         accept_image = False
-        for image_re in settings.LIMIT_IMAGES:
+        for image_re in settings.LIMIT_IMAGE_NAME:
             if re.match(image_re, t.image):
                 accept_image = True
                 break
@@ -46,11 +48,11 @@ def task(request, key):
                 storage=settings.LIMIT_STORAGE,
                 network=settings.LIMIT_NETWORK,
                 time=settings.LIMIT_TIME,
-                image=settings.LIMIT_IMAGE,
+                image_size=settings.LIMIT_IMAGE_SIZE,
             )
         t.limits.update(limits)
         if settings.IMAGE_REGISTRY is not None and settings.IMAGE_NAME is not None:
-            image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_NAME+':'+t.id]
+            image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_NAME+':'+t.id
             subprocess.run(['docker', 'pull', t.image])
             subprocess.run(['docker', 'tag', t.image, image_name])
             subprocess.run(['docker', 'push', image_name])
