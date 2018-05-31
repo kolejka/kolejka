@@ -32,6 +32,7 @@ class KolejkaLimits:
         self.pids = parse_int(args.get('pids', None))
         self.storage = parse_memory(args.get('storage', None))
         self.time = parse_time(args.get('time', None))
+        self.image = parse_memory(args.get('image', None))
 
     def dump(self):
         res = dict()
@@ -49,6 +50,8 @@ class KolejkaLimits:
             res['storage'] = unparse_memory(self.storage)
         if self.time is not None:
             res['time'] = unparse_time(self.time)
+        if self.image is not None:
+            res['image'] = unparse_memory(self.image)
         return res
 
     def update(self, other):
@@ -59,6 +62,7 @@ class KolejkaLimits:
         self.pids = min_none(self.pids, other.pids)
         self.storage = min_none(self.storage, other.storage)
         self.time = min_none(self.time, other.time)
+        self.image = min_none(self.image, other.image)
 
 class KolejkaStats:
     class CpusStats:

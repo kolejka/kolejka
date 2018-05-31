@@ -24,6 +24,7 @@ def dequeue(request):
         tags = set(params.get('tags', list()))
         resources = KolejkaLimits()
         resources.update(limits)
+        image_usage = dict()
 
         available_tasks = Task.objects.filter(assignee=None).order_by('time_create')[0:100]
         for t in available_tasks:
@@ -42,10 +43,14 @@ def dequeue(request):
                 continue
             if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
                 continue
+            image_usage_add = max(image_usage.get(tt.image, 0), tt.limits.image) - image_usage.get(tt.image, 0)
+            if resources.image is not None and (tt.limits.image is None or image_usage_add > resources.image):
+                continue
             if resources.network is not None and (tt.limits.network is None or tt.limits.network and not resources.network):
                 continue
             if resources.time is not None and (tt.limits.time is None or tt.limits.time > resources.time):
                 continue
+
             tasks.append(tt.dump())
             t.assignee = request.user
             t.save()
@@ -57,6 +62,9 @@ def dequeue(request):
                 resources.pids -= tt.limits.pids
             if resources.storage is not None:
                 resources.storage -= tt.limits.storage
+            if resources.image is not None:
+                resources.image -= image_usage_add
+                image_usage[tt.image] = max(image_usage.get(tt.image, 0), tt.limits.image)
             if tt.exclusive:
                 break
 

@@ -8,8 +8,6 @@ CONFIG_FILE = 'kolejka.conf'
 
 CONFIG_SERVER = 'https://kolejka.matinf.uj.edu.pl/kolejka'
 
-CONFIG_REPOSITORY = 'kolejka'
-
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
 OBSERVER_PID_FILE = "/var/run/kolejka/observer/pid"

@@ -20,6 +20,13 @@ def task(request, key):
             return HttpResponseForbidden()
         t = KolejkaTask(None)
         t.load(request.read())
+        accept_image = False
+        for image_re in settings.LIMIT_IMAGES:
+            if re.match(image_re, t.image):
+                accept_image = True
+                break
+        if not accept_image:
+            return HttpResponseForbidden() #TODO: Tell user why?
         t.id = uuid.uuid4().hex
         for k,f in t.files.items():
             if not f.reference:
@@ -39,8 +46,16 @@ def task(request, key):
                 storage=settings.LIMIT_STORAGE,
                 network=settings.LIMIT_NETWORK,
                 time=settings.LIMIT_TIME,
+                image=settings.LIMIT_IMAGE,
             )
         t.limits.update(limits)
+        if settings.IMAGE_REGISTRY is not None and settings.IMAGE_NAME is not None:
+            image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_NAME+':'+t.id]
+            subprocess.run(['docker', 'pull', t.image])
+            subprocess.run(['docker', 'tag', t.image, image_name])
+            subprocess.run(['docker', 'push', image_name])
+            t.image = image_name
+            #TODO: Check image size
 
         task = models.Task(user=request.user, key=t.id, description=json.dumps(t.dump()))
         task.save()

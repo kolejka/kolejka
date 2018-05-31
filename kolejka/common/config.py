@@ -8,7 +8,7 @@ import logging
 import os
 
 from .parse import parse_memory, parse_time, parse_bool, parse_int, parse_float, parse_str_list
-from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SERVER, CONFIG_REPOSITORY, FOREMAN_INTERVAL, FOREMAN_CONCURENCY
+from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SERVER, FOREMAN_INTERVAL, FOREMAN_CONCURENCY
 from .tags import foreman_auto_tags
 
 class KolejkaConfig:

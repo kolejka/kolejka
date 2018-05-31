@@ -89,6 +89,14 @@ LIMIT_PIDS = None
 LIMIT_STORAGE = None 
 LIMIT_NETWORK = None
 LIMIT_TIME = None
+LIMIT_IMAGE = None
+
+LIMIT_IMAGES = [
+        r'.*',
+]
+
+IMAGE_REGISTRY = None
+IMAGE_NAME = 'kolejka_task'
 
 try:
     from kolejka.server.settings_local import *

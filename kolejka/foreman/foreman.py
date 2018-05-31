@@ -56,6 +56,7 @@ def foreman():
     limits.storage = config.storage
     limits.time = config.time
     limits.network = config.network
+    limits.image = config.image
     client = KolejkaClient()
     while True:
         try:
@@ -66,6 +67,7 @@ def foreman():
                 while len(tasks) > 0:
                     resources = KolejkaLimits()
                     resources.update(limits)
+                    image_usage = dict()
                     processes = list()
                     cpus_offset = 0
                     for task in tasks:
@@ -84,9 +86,11 @@ def foreman():
                             ok = False
                         if resources.storage is not None and task.limits.storage > resources.storage:
                             ok = False
+                        image_usage_add = max(image_usage.get(task.image, 0), task.limits.image) - image_usage.get(task.image, 0)
+                        if resources.image is not None and image_usage_add > resources.image:
+                            ok = False
                         if ok:
                             proc = Thread(target=foreman_single, args=(config.temp_path, client, task))
-                            proc.start()
                             processes.append(proc)
                             cpus_offset += task.limits.cpus
                             if resources.cpus is not None:
@@ -97,11 +101,17 @@ def foreman():
                                 resources.pids -= task.limits.pids
                             if resources.storage is not None:
                                 resources.storage -= task.limits.storage
+                            if resources.image is not None:
+                                resources.image -= image_usage_add
+                                image_usage[task.image] = max(image_usage.get(task.image, 0), task.limits.image)
                             tasks = tasks[1:]
                             if task.exclusive:
                                 break
                         else:
                             break
+#TODO: manage docker images. Remove old. Pull new. Check sizes.
+                    for proc in processes:
+                        proc.start()
                     for proc in processes:
                         proc.join()
         except:
@@ -119,6 +129,7 @@ def config_parser(parser):
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
+    parser.add_argument('--image', action=MemoryAction, help='image size limit')
     def execute(args):
         kolejka_config(args=args)
         foreman()
