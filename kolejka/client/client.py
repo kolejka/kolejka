@@ -2,15 +2,23 @@
 
 import hashlib
 import json
+import logging
 import os
 import re
 import requests
+import shutil
 import sys
 import time
 
 from kolejka.common import kolejka_config, client_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction
+
+class KolejkaClientError(Exception):
+    pass
+
+class KolejkaClientAuthorizationError(KolejkaClientError):
+    pass
 
 class KolejkaClient:
     def __init__(self):
@@ -68,9 +76,14 @@ class KolejkaClient:
     def login(self, username=None, password=None):
         username = username or self.config.username
         password = password or self.config.password
-        self.post('/accounts/login/', data={'username': username, 'password': password})
+        assert username and password
+        response = self.post('/accounts/login/', data={'username': username, 'password': password})
+        if response.status_code != requests.codes.ok:
+            return
+            raise KolejkaClientAuthorizationError()
 
     def blob_put(self, blob_path):
+        assert os.path.isfile(blob_path)
         if not self.instance_session:
             self.login() 
         hasher = hashlib.new(self.config.blob_hash_algorithm)
@@ -81,26 +94,26 @@ class KolejkaClient:
                     break
                 hasher.update(buf)
             hash = hasher.hexdigest()
-            info = self.post('/blob/blob/{}/'.format(hash), data={})
-            if info.status_code == 200:
-                reference = info.json()['reference']
+            response = self.post('/blob/blob/{}/'.format(hash), data={})
+            if response.status_code == requests.codes.ok:
+                reference = response.json()['reference']
                 return reference
-            else:
-                blob_file.seek(0)
-                info = self.post('/blob/reference/', data=blob_file)
-                if info.status_code == 200:
-                    reference = info.json()['reference']
-                    return reference
-                else:
-                    print(info)
-                    print(info.text)
+            blob_file.seek(0)
+            response = self.post('/blob/reference/', data=blob_file)
+            if response.status_code == requests.codes.ok:
+                reference = response.json()['reference']
+                return reference
+            logging.debug(response)
+            logging.debug(response.text)
+        raise KolejkaClientError()
 
     def blob_get(self, blob_path, blob_reference=None, blob_hash=None):
+        assert blob_reference or blob_hash
         if blob_reference is not None:
             response = self.get('/blob/reference/{}/'.format(blob_reference), stream=True)
         elif blob_hash is not None:
             response = self.get('/blob/blob/{}/'.format(blob_hash), stream=True)
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             dir_path = os.path.dirname(os.path.abspath(blob_path))
             os.makedirs(dir_path, exist_ok=True)
             try:
@@ -111,27 +124,31 @@ class KolejkaClient:
             except:
                 os.unlink(blob_path)
                 raise
-        else:
-            print(response)
-            print(response.text)
+            return
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def blob_del(self, blob_reference=None, blob_hash=None):
+        assert blob_reference or blob_hash
         if blob_reference is not None:
             response = self.delete('/blob/reference/{}/'.format(blob_reference))
         elif blob_hash is not None:
             response = self.delete('/blob/blob/{}/'.format(blob_hash))
-        if response.status_code == 200:
-            pass
-        else:
-            print(response)
-            print(response.text)
+        if response.status_code == requests.codes.ok:
+            return
+        elif response.status_code == requests.codes.not_found:
+            return
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def blob_check(self, blob_reference=None, blob_hash=None):
         if blob_reference is not None:
             response = self.head('/blob/reference/{}/'.format(blob_reference), stream=True)
         elif blob_hash is not None:
             response = self.head('/blob/blob/{}/'.format(blob_hash), stream=True)
-        return response.status_code == 200
+        return response.status_code == requests.codes.ok
 
     def task_put(self, task):
         limits = KolejkaLimits()
@@ -145,27 +162,24 @@ class KolejkaClient:
         task.limits.update(limits)
         if not self.instance_session:
             self.login() 
-        for k,f in task.files.items():
+        for f in task.files.values():
             if not f.reference or not self.blob_check(blob_reference = f.reference):
-                f.reference = None
-                if f.path:
-                    f.reference = self.blob_put(os.path.join(task.path, f.path))['key']
-                else:
-                    raise 
-        info = self.post('/task/task/', data=json.dumps(task.dump()))
-        if info.status_code == 200:
+                assert f.path
+                f.reference = self.blob_put(os.path.join(task.path, f.path))['key']
+        response = self.post('/task/task/', data=json.dumps(task.dump()))
+        if response.status_code == requests.codes.ok:
             task = KolejkaTask(None)
-            task.load(info.json()['task'])
+            task.load(response.json()['task'])
             return task
-        else:
-            print(info)
-            print(info.text)
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def task_get(self, task_key, task_path):
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
         response = self.get('/task/task/{}/'.format(task_key))
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             os.makedirs(task_path, exist_ok=True)
             task = KolejkaTask(task_path)
             desc = response.json()['task']
@@ -175,39 +189,41 @@ class KolejkaClient:
                 f.path = k
             task.commit()
             return task
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def task_del(self, task_key):
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
         response = self.delete('/task/task/{}/'.format(task_key))
-        if response.status_code == 200:
-            pass
-        else:
-            print(response)
-            print(response.text)
+        if response.status_code == requests.codes.ok:
+            return
+        elif response.status_code == requests.codes.not_found:
+            return
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def result_put(self, result):
         if not self.instance_session:
             self.login() 
-        for k,f in result.files.items():
+        for f in result.files.values():
             if not f.reference or not self.blob_check(blob_reference = f.reference):
-                f.reference = None
-                if f.path:
-                    f.reference = self.blob_put(os.path.join(result.path, f.path))['key']
-                else:
-                    raise 
-        info = self.post('/task/result/', data=json.dumps(result.dump()))
-        if info.status_code == 200:
+                assert f.path
+                f.reference = self.blob_put(os.path.join(result.path, f.path))['key']
+        response = self.post('/task/result/', data=json.dumps(result.dump()))
+        if response.status_code == requests.codes.ok:
             result = KolejkaResult(None)
-            result.load(info.json()['result'])
+            result.load(response.json()['result'])
             return result
-        else:
-            print(info)
-            print(info.text)
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def result_get(self, task_key, result_path):
         response = self.get('/task/result/{}/'.format(task_key))
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             os.makedirs(result_path, exist_ok=True)
             result = KolejkaResult(result_path)
             desc = response.json()['result']
@@ -217,24 +233,31 @@ class KolejkaClient:
                 f.path = k
             result.commit()
             return result
+        elif response.status_code == requests.codes.not_found:
+            return None
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def result_del(self, result_key):
-        if isinstance(task_key, KolejkaTask):
-            task_key = task_key.id
-        if isinstance(task_key, KolejkaResult):
-            task_key = task_key.id
-        response = self.delete('/task/result/{}/'.format(task_key))
-        if response.status_code == 200:
-            pass
-        else:
-            print(response)
-            print(response.text)
+        if isinstance(result_key, KolejkaTask):
+            result_key = result_key.id
+        if isinstance(result_key, KolejkaResult):
+            result_key = result_key.id
+        response = self.delete('/task/result/{}/'.format(result_key))
+        if response.status_code == requests.codes.ok:
+            return
+        elif response.status_code == requests.codes.not_found:
+            return
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
     def dequeue(self, concurency, limits, tags):
         if not self.instance_session:
             self.login() 
         response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump(), 'tags' : tags}))
-        if response.status_code == 200:
+        if response.status_code == requests.codes.ok:
             ts = response.json()['tasks']
             tasks = list()
             for t in ts:
@@ -242,9 +265,12 @@ class KolejkaClient:
                 tt.load(t)
                 tasks.append(tt)
             return tasks
+        logging.debug(response)
+        logging.debug(response.text)
+        raise KolejkaClientError()
 
 def config_parser_blob_put(parser):
-    parser.add_argument("file", type=str, help='file')
+    parser.add_argument('file', type=str, help='file')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
@@ -253,20 +279,20 @@ def config_parser_blob_put(parser):
     parser.set_defaults(execute=execute)
 
 def config_parser_blob_get(parser):
-    parser.add_argument("reference", type=str, help='reference key')
-    parser.add_argument("path", type=str, help='result path')
+    parser.add_argument('reference', type=str, help='reference key')
+    parser.add_argument('path', type=str, help='result path')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.blob_get(args.path, blob_reference=args.reference)
+        client.blob_get(args.path, blob_reference=args.reference)
     parser.set_defaults(execute=execute)
 
 def config_parser_blob_del(parser):
-    parser.add_argument("reference", type=str, help='reference key')
+    parser.add_argument('reference', type=str, help='reference key')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.blob_del(blob_reference=args.reference)
+        client.blob_del(blob_reference=args.reference)
     parser.set_defaults(execute=execute)
 
 def config_parser_blob(parser):
@@ -280,7 +306,7 @@ def config_parser_blob(parser):
     config_parser_blob_del(subparser)
 
 def config_parser_task_put(parser):
-    parser.add_argument("task", type=str, help='task folder')
+    parser.add_argument('task', type=str, help='task folder')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
@@ -297,20 +323,20 @@ def config_parser_task_put(parser):
     parser.set_defaults(execute=execute)
 
 def config_parser_task_get(parser):
-    parser.add_argument("task", type=str, help='task key')
-    parser.add_argument("path", type=str, help='task folder')
+    parser.add_argument('task', type=str, help='task key')
+    parser.add_argument('path', type=str, help='task folder')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.task_get(args.task, args.path)
+        client.task_get(args.task, args.path)
     parser.set_defaults(execute=execute)
 
 def config_parser_task_del(parser):
-    parser.add_argument("task", type=str, help='task key')
+    parser.add_argument('task', type=str, help='task key')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.task_del(args.task)
+        client.task_del(args.task)
     parser.set_defaults(execute=execute)
 
 def config_parser_task(parser):
@@ -324,29 +350,29 @@ def config_parser_task(parser):
     config_parser_task_del(subparser)
 
 def config_parser_result_put(parser):
-    parser.add_argument("result", type=str, help='result folder')
+    parser.add_argument('result', type=str, help='result folder')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
         result = KolejkaResult(args.result)
-        response = client.result_put(result)
+        client.result_put(result)
     parser.set_defaults(execute=execute)
 
 def config_parser_result_get(parser):
-    parser.add_argument("task", type=str, help='task key')
-    parser.add_argument("path", type=str, help='result folder')
+    parser.add_argument('task', type=str, help='task key')
+    parser.add_argument('path', type=str, help='result folder')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.result_get(args.task, args.path)
+        client.result_get(args.task, args.path)
     parser.set_defaults(execute=execute)
 
 def config_parser_result_del(parser):
-    parser.add_argument("task", type=str, help='task key')
+    parser.add_argument('task', type=str, help='task key')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
-        response = client.result_del(args.task)
+        client.result_del(args.task)
     parser.set_defaults(execute=execute)
 
 def config_parser_result(parser):
@@ -360,10 +386,10 @@ def config_parser_result(parser):
     config_parser_result_del(subparser)
 
 def config_parser_execute(parser):
-    parser.add_argument("task", type=str, help='task folder')
-    parser.add_argument("result", type=str, help='result folder')
+    parser.add_argument('task', type=str, help='task folder')
+    parser.add_argument('result', type=str, help='result folder')
     parser.add_argument('--interval', type=float, default=5, help='result query interval (in seconds)')
-    parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.add_argument('--consume', action='store_true', default=False, help='consume task folder') 
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
@@ -382,7 +408,7 @@ def config_parser_execute(parser):
             if result is not None:
                 if args.consume:
                     shutil.rmtree(args.task)
-                return result
+                break
     parser.set_defaults(execute=execute)
 
 def config_parser(parser):

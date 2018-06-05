@@ -135,6 +135,10 @@ class KolejkaFiles:
                 return False
         return True
 
+    def keys(self):
+        return self.files.keys()
+    def values(self):
+        return self.files.values()
     def items(self):
         return self.files.items()
 
