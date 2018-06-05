@@ -79,4 +79,7 @@ MYSELF="\$(readlink -f "\$(which "\${0}")")"
 OFFICE="\$(dirname "\${MYSELF}")"
 exec "\${OFFICE}/current/python3" "\$@"
 EOF
+    exit 0
 fi
+
+exit 1
