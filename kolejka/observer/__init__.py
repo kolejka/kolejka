@@ -4,3 +4,4 @@ __import__('pkg_resources').declare_namespace('kolejka')
 
 from .client import KolejkaObserverClient
 from .server import KolejkaObserverServer
+from .runner import run

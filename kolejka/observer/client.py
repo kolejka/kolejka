@@ -61,23 +61,3 @@ class KolejkaObserverClient:
         self.post('close')
         self.session = None
         self.secret = None
-
-def run(args, limits=None, **kwargs):
-    if limits is None:
-        limits = KolejkaLimits()
-    def target(conn, args, limits, kwargs):
-        client = KolejkaObserverClient()
-        client.attach()
-        client.limit(limits)
-        res = subprocess.run(args, **kwargs)
-        stats = client.stats()
-        client.close()
-#TODO: add stats to res, handle exceptions
-        conn.send(res)
-        conn.close()
-    p_conn, c_conn = multiprocessing.Pipe()
-    proc = Process(target=target, args=(c_conn, args, limits, kwargs))
-    proc.start()
-    res = p_conn.recv()
-    proc.join()
-    return res

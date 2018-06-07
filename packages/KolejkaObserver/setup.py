@@ -13,13 +13,14 @@ kolejka_observer = {
         'description' : 'Kolejka Observer Daemon',
         'packages' : sub_find_packages('kolejka.observer'),
         'install_requires' : [
-            'daemonize',
+            'python-daemon',
             'setproctitle',
             'KolejkaCommon',
         ],
         'entry_points' : {
             'console_scripts' : [
                 'kolejka-observer = kolejka.observer.server:main',
+                'kolejka-runner = kolejka.observer.runner:main',
             ],
         },
     }

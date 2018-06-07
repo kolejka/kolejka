@@ -459,11 +459,11 @@ class KolejkaObserverServer(ObserverServer):
 
 def main():
     import argparse
+    import daemon
     import logging
     import os
     import setproctitle
     import traceback
-    from daemonize import Daemonize
     from kolejka.common.settings import OBSERVER_SOCKET
     from kolejka.observer import KolejkaObserverServer
 
@@ -486,8 +486,8 @@ def main():
         def action():
             return server.serve_forever()
         if args.detach:
-            daemon = Daemonize(app='kolejka-observer', pid=args.pid_file, action=action, verbose=(args.debug or args.verbose))
-            daemon.start()
+            with daemon.DaemonContext(pidfile=args.pid_file):
+                action()
         else:
             action()
 
