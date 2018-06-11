@@ -22,6 +22,9 @@ from kolejka.common import MemoryAction, TimeAction
 from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
 
+def manage_images(size, necessary_images, priority_images):
+    pass
+
 def foreman_single(temp_path, client, task):
     config = foreman_config()
     with tempfile.TemporaryDirectory(temp_path) as jailed_path:
@@ -111,6 +114,8 @@ def foreman():
                         else:
                             break
 #TODO: manage docker images. Remove old. Pull new. Check sizes.
+                    if config.image_size is not None:
+                        manage_images(config.image_size, image_usage, [task.image for task in tasks])
                     for proc in processes:
                         proc.start()
                     for proc in processes:

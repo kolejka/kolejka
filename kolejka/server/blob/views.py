@@ -4,10 +4,12 @@ import hashlib
 import os
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, StreamingHttpResponse
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from . import models
+
+from kolejka.server.response import OKResponse, FAILResponse
 
 READ_BUF_SIZE = 8192
 
@@ -48,7 +50,7 @@ def reference(request, key):
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
         }
-        return JsonResponse(response)
+        return OKResponse(response)
     try:
         reference = models.Reference.objects.get(key=key)
     except models.Reference.DoesNotExist:
@@ -67,14 +69,14 @@ def reference(request, key):
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
         }
-        return JsonResponse(response)
+        return OKResponse(response)
     if request.method == 'DELETE':
         if not request.user.is_authenticated():
             return HttpResponseForbidden()
         if not request.user.is_superuser and request.user != reference.user:
             return HttpResponseForbidden()
         reference.delete()
-        return JsonResponse({'deleted' : True})
+        return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':
         reference.blob.save()
         reference.save()
@@ -102,7 +104,7 @@ def blob(request, key):
             'time_create' : reference.time_create,
             'time_access' : reference.time_access,
         }
-        return JsonResponse(response)
+        return OKResponse(response)
     if request.method == 'POST':
         response = dict()
         response['blob'] = {
@@ -112,13 +114,13 @@ def blob(request, key):
             'time_access' : blob.time_access,
             'references' : blob.reference_set.count(),
         }
-        return JsonResponse(response)
+        return OKResponse(response)
     if request.method == 'DELETE':
         if not request.user.is_superuser:
             return HttpResponseForbidden()
         blob.reference_set.all().delete()
         blob.delete()
-        return JsonResponse({'deleted' : True})
+        return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':
         if not request.user.is_superuser:
             return HttpResponseForbidden()

@@ -80,6 +80,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(PROJECT_DIR, '../kolejka-server-static')
 
+LOGIN_REDIRECT_URL = '/'
+
 BLOB_HASH_ALGORITHM = 'sha256'
 BLOB_STORE_PATH = os.path.join(PROJECT_DIR, '../kolejka-server-blobs')
 
@@ -96,7 +98,9 @@ LIMIT_IMAGE_NAME = [
 ]
 
 IMAGE_REGISTRY = None
-IMAGE_NAME = 'kolejka_task'
+IMAGE_REGISTRY_NAME = 'kolejka_task'
+IMAGE_REGISTRY_USERNAME = None
+IMAGE_REGISTRY_PASSWORD = None
 
 try:
     from kolejka.server.settings_local import *

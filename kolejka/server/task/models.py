@@ -40,4 +40,14 @@ def task_init(instance, **kwargs):
     if not instance.key:
         instance.key = uuid.uuid4().hex
 
+def task_delete(instance, **kwargs):
+    if settings.IMAGE_REGISTRY is not None and settings.IMAGE_REGISTRY_NAME is not None:
+        image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_REGISTRY_NAME+':'+t.id
+        task = instance.task()
+        if task.image == image_name:
+            pass
+            #TODO: remove tag from registry
+
+
 models.signals.post_init.connect(task_init, Task)
+models.signals.post_delete.connect(task_delete, Task)

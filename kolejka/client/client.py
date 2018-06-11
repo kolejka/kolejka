@@ -20,6 +20,18 @@ class KolejkaClientError(Exception):
 class KolejkaClientAuthorizationError(KolejkaClientError):
     pass
 
+class KolejkaClientObjectNotFoundError(KolejkaClientError):
+    pass
+
+class KolejkaClientRemoteError(KolejkaClientError):
+    pass
+
+class KolejkaClientDownloadError(KolejkaClientError):
+    pass
+
+class KolejkaClientUploadError(KolejkaClientError):
+    pass
+
 class KolejkaClient:
     def __init__(self):
         self.config = client_config()
@@ -30,7 +42,10 @@ class KolejkaClient:
             self.login()
     @property
     def instance(self):
-        return self.config.server
+        url = self.config.server
+        if not re.search(r'^https?://', url):
+            url = 'https://'+url
+        return url
     def instance_url(self, url):
         if not re.search(r'^https?://', url):
             url = self.instance.rstrip('/') + '/' + url.lstrip('/')
@@ -42,6 +57,22 @@ class KolejkaClient:
     def instance_session(self):
         return self.session.cookies.get('sessionid', '')
 
+    def check_response(self, response):
+        if response.status_code == requests.codes.forbidden:
+            raise KolejkaClientAuthorizationError()
+        if response.status_code == requests.codes.not_found:
+            raise KolejkaClientObjectNotFoundError()
+        if response.status_code != requests.codes.ok:
+            raise KolejkaClientRemoteError()
+        if response.headers.get('content-type','') == 'application/json':
+            j = response.json()
+            if isinstance(j, dict) and 'status' in j:
+                if j['status'] != 'OK':
+                    if 'message' in j:
+                        raise KolejkaClientRemoteError(j['message'])
+                    raise KolejkaClientRemoteError()
+        return response
+
     def simple(self, method, *args, **kwargs):
         if len(args) >= 1:
             args = list(args)
@@ -49,7 +80,7 @@ class KolejkaClient:
         headers = kwargs.get('headers', dict())
         headers['Referer'] = self.instance
         kwargs['headers'] = headers
-        return method(*args, **kwargs)
+        return self.check_response( method(*args, **kwargs))
 
     def complex(self, method, *args, **kwargs):
         if len(args) >= 1:
@@ -59,8 +90,7 @@ class KolejkaClient:
         headers['X-CSRFToken'] = self.instance_csrf
         headers['Referer'] = self.instance
         kwargs['headers'] = headers
-        result = method(*args, **kwargs)
-        return result
+        return self.check_response( method(*args, **kwargs))
 
     def head(self, *args, **kwargs):
         return self.simple(self.session.head, *args, **kwargs)
@@ -78,9 +108,6 @@ class KolejkaClient:
         password = password or self.config.password
         assert username and password
         response = self.post('/accounts/login/', data={'username': username, 'password': password})
-        if response.status_code != requests.codes.ok:
-            return
-            raise KolejkaClientAuthorizationError()
 
     def blob_put(self, blob_path):
         assert os.path.isfile(blob_path)
@@ -94,17 +121,15 @@ class KolejkaClient:
                     break
                 hasher.update(buf)
             hash = hasher.hexdigest()
-            response = self.post('/blob/blob/{}/'.format(hash), data={})
-            if response.status_code == requests.codes.ok:
+            try:
+                response = self.post('/blob/blob/{}/'.format(hash), data={})
                 reference = response.json()['reference']
                 return reference
-            blob_file.seek(0)
-            response = self.post('/blob/reference/', data=blob_file)
-            if response.status_code == requests.codes.ok:
+            except KolejkaClientObjectNotFoundError:
+                blob_file.seek(0)
+                response = self.post('/blob/reference/', data=blob_file)
                 reference = response.json()['reference']
                 return reference
-            logging.debug(response)
-            logging.debug(response.text)
         raise KolejkaClientError()
 
     def blob_get(self, blob_path, blob_reference=None, blob_hash=None):
@@ -113,42 +138,36 @@ class KolejkaClient:
             response = self.get('/blob/reference/{}/'.format(blob_reference), stream=True)
         elif blob_hash is not None:
             response = self.get('/blob/blob/{}/'.format(blob_hash), stream=True)
-        if response.status_code == requests.codes.ok:
-            dir_path = os.path.dirname(os.path.abspath(blob_path))
-            os.makedirs(dir_path, exist_ok=True)
-            try:
-                with open(blob_path, 'wb') as blob_file:
-                    for chunk in response.iter_content():
-                        if chunk:
-                            blob_file.write(chunk)
-            except:
-                os.unlink(blob_path)
-                raise
-            return
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        dir_path = os.path.dirname(os.path.abspath(blob_path))
+        os.makedirs(dir_path, exist_ok=True)
+        try:
+            with open(blob_path, 'wb') as blob_file:
+                for chunk in response.iter_content():
+                    if chunk:
+                        blob_file.write(chunk)
+        except:
+            os.unlink(blob_path)
+            raise KolejkaClientDownloadError()
 
     def blob_del(self, blob_reference=None, blob_hash=None):
         assert blob_reference or blob_hash
-        if blob_reference is not None:
-            response = self.delete('/blob/reference/{}/'.format(blob_reference))
-        elif blob_hash is not None:
-            response = self.delete('/blob/blob/{}/'.format(blob_hash))
-        if response.status_code == requests.codes.ok:
-            return
-        elif response.status_code == requests.codes.not_found:
-            return
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        try:
+            if blob_reference is not None:
+                response = self.delete('/blob/reference/{}/'.format(blob_reference))
+            elif blob_hash is not None:
+                response = self.delete('/blob/blob/{}/'.format(blob_hash))
+        except KolejkaClientObjectNotFoundError:
+            pass
 
     def blob_check(self, blob_reference=None, blob_hash=None):
-        if blob_reference is not None:
-            response = self.head('/blob/reference/{}/'.format(blob_reference), stream=True)
-        elif blob_hash is not None:
-            response = self.head('/blob/blob/{}/'.format(blob_hash), stream=True)
-        return response.status_code == requests.codes.ok
+        try:
+            if blob_reference is not None:
+                response = self.head('/blob/reference/{}/'.format(blob_reference), stream=True)
+            elif blob_hash is not None:
+                response = self.head('/blob/blob/{}/'.format(blob_hash), stream=True)
+            return True
+        except KolejkaClientObjectNotFoundError:
+            return False
 
     def task_put(self, task):
         limits = KolejkaLimits()
@@ -167,43 +186,31 @@ class KolejkaClient:
                 assert f.path
                 f.reference = self.blob_put(os.path.join(task.path, f.path))['key']
         response = self.post('/task/task/', data=json.dumps(task.dump()))
-        if response.status_code == requests.codes.ok:
-            task = KolejkaTask(None)
-            task.load(response.json()['task'])
-            return task
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        task = KolejkaTask(None)
+        task.load(response.json()['task'])
+        return task
 
     def task_get(self, task_key, task_path):
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
         response = self.get('/task/task/{}/'.format(task_key))
-        if response.status_code == requests.codes.ok:
-            os.makedirs(task_path, exist_ok=True)
-            task = KolejkaTask(task_path)
-            desc = response.json()['task']
-            task.load(desc)
-            for k,f in task.files.items():
-                self.blob_get(os.path.join(task.path, k), f.reference)
-                f.path = k
-            task.commit()
-            return task
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        os.makedirs(task_path, exist_ok=True)
+        task = KolejkaTask(task_path)
+        desc = response.json()['task']
+        task.load(desc)
+        for k,f in task.files.items():
+            self.blob_get(os.path.join(task.path, k), f.reference)
+            f.path = k
+        task.commit()
+        return task
 
     def task_del(self, task_key):
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
-        response = self.delete('/task/task/{}/'.format(task_key))
-        if response.status_code == requests.codes.ok:
-            return
-        elif response.status_code == requests.codes.not_found:
-            return
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        try:
+            response = self.delete('/task/task/{}/'.format(task_key))
+        except KolejkaClientObjectNotFoundError:
+            pass
 
     def result_put(self, result):
         if not self.instance_session:
@@ -213,61 +220,43 @@ class KolejkaClient:
                 assert f.path
                 f.reference = self.blob_put(os.path.join(result.path, f.path))['key']
         response = self.post('/task/result/', data=json.dumps(result.dump()))
-        if response.status_code == requests.codes.ok:
-            result = KolejkaResult(None)
-            result.load(response.json()['result'])
-            return result
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        result = KolejkaResult(None)
+        result.load(response.json()['result'])
+        return result
 
     def result_get(self, task_key, result_path):
         response = self.get('/task/result/{}/'.format(task_key))
-        if response.status_code == requests.codes.ok:
-            os.makedirs(result_path, exist_ok=True)
-            result = KolejkaResult(result_path)
-            desc = response.json()['result']
-            result.load(desc)
-            for k,f in result.files.items():
-                self.blob_get(os.path.join(result.path, k), f.reference)
-                f.path = k
-            result.commit()
-            return result
-        elif response.status_code == requests.codes.not_found:
-            return None
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        os.makedirs(result_path, exist_ok=True)
+        result = KolejkaResult(result_path)
+        desc = response.json()['result']
+        result.load(desc)
+        for k,f in result.files.items():
+            self.blob_get(os.path.join(result.path, k), f.reference)
+            f.path = k
+        result.commit()
+        return result
 
     def result_del(self, result_key):
         if isinstance(result_key, KolejkaTask):
             result_key = result_key.id
         if isinstance(result_key, KolejkaResult):
             result_key = result_key.id
-        response = self.delete('/task/result/{}/'.format(result_key))
-        if response.status_code == requests.codes.ok:
-            return
-        elif response.status_code == requests.codes.not_found:
-            return
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        try:
+            response = self.delete('/task/result/{}/'.format(result_key))
+        except KolejkaClientObjectNotFoundError:
+            pass
 
     def dequeue(self, concurency, limits, tags):
         if not self.instance_session:
             self.login() 
         response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump(), 'tags' : tags}))
-        if response.status_code == requests.codes.ok:
-            ts = response.json()['tasks']
-            tasks = list()
-            for t in ts:
-                tt = KolejkaTask(None)
-                tt.load(t)
-                tasks.append(tt)
-            return tasks
-        logging.debug(response)
-        logging.debug(response.text)
-        raise KolejkaClientError()
+        ts = response.json()['tasks']
+        tasks = list()
+        for t in ts:
+            tt = KolejkaTask(None)
+            tt.load(t)
+            tasks.append(tt)
+        return tasks
 
 def config_parser_blob_put(parser):
     parser.add_argument('file', type=str, help='file')
@@ -404,11 +393,13 @@ def config_parser_execute(parser):
         response = client.task_put(task)
         while True:
             time.sleep(args.interval)
-            result = client.result_get(response.id, args.result)
-            if result is not None:
-                if args.consume:
-                    shutil.rmtree(args.task)
-                break
+            try:
+                result = client.result_get(response.id, args.result)
+            except KolejkaClientObjectNotFoundError:
+                continue
+            if args.consume:
+                shutil.rmtree(args.task)
+            break
     parser.set_defaults(execute=execute)
 
 def config_parser(parser):
