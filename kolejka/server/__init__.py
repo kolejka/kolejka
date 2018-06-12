@@ -1,8 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-#__import__('pkg_resources').declare_namespace('kolejka')
-
-from django.http import JsonResponse
+__import__('pkg_resources').declare_namespace('kolejka')
 
 def main():
     import os

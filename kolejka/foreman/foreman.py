@@ -8,22 +8,54 @@ import json
 import logging
 import math
 import os
+import random
 import shutil
 import subprocess
 import sys
 import tempfile
+import traceback
 from threading import Thread
 import time
 import uuid
 
 from kolejka.common import kolejka_config, foreman_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
-from kolejka.common import MemoryAction, TimeAction
+from kolejka.common import MemoryAction, TimeAction, parse_memory
 from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
 
 def manage_images(size, necessary_images, priority_images):
-    pass
+    necessary_size = sum(necessary_images.values(), 0)
+    free_size = size - necessary_size
+    assert free_size >= 0
+    docker_images = dict([(a.split()[0], parse_memory(a.split()[1]))  for a in str(subprocess.run(['docker', 'image', 'ls', '--format', '{{.Repository}}:{{.Tag}} {{.Size}}'], stdout=subprocess.PIPE, check=True).stdout, 'utf-8').split('\n') if a])
+    p_images = dict()
+    for image in priority_images:
+        if image in docker_images:
+            p_images[image] = docker_images[image]
+    priority_images = p_images
+    keep_images = set()
+    for image in necessary_images:
+        keep_images.add(image)
+    list_images = list(priority_images.items())
+    random.shuffle(list_images)
+    li = list(docker_images.items())
+    random.shuffle(li)
+    list_images += li
+    for image,size in list_images:
+        if image in keep_images:
+            continue
+        if size <= free_size:
+            free_size -= size
+            keep_images.add(image)
+    for image in docker_images:
+        if image not in keep_images:
+            subprocess.run(['docker', 'image', 'rm', image])
+    for image,size in necessary_images.items():
+        subprocess.run(['docker', 'pull', image], check=True)
+        docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', '--format', '{{json .Size}}', image], stdout=subprocess.PIPE, check=True)
+        image_size = int(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
+        assert image_size <= size
 
 def foreman_single(temp_path, client, task):
     config = foreman_config()
@@ -121,6 +153,7 @@ def foreman():
                     for proc in processes:
                         proc.join()
         except:
+            traceback.print_exc()
             time.sleep(config.interval)
 
 def config_parser(parser):
