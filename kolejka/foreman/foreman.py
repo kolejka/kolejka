@@ -23,6 +23,7 @@ from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction, parse_memory
 from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
+from kolejka.worker.volume import check_python_volume
 
 def manage_images(size, necessary_images, priority_images):
     necessary_size = sum(necessary_images.values(), 0)
@@ -60,8 +61,8 @@ def manage_images(size, necessary_images, priority_images):
 def foreman_single(temp_path, client, task):
     config = foreman_config()
     with tempfile.TemporaryDirectory(temp_path) as jailed_path:
-        if task.limits.storage is not None:
-            subprocess.run(['mount', '-t', 'tmpfs', '-o', 'size='+str(task.limits.storage), 'none', jailed_path], check=True)
+        if task.limits.workspace is not None:
+            subprocess.run(['mount', '-t', 'tmpfs', '-o', 'size='+str(task.limits.workspace), 'none', jailed_path], check=True)
         try:
             task_path = os.path.join(jailed_path, 'task')
             result_path = os.path.join(jailed_path, 'result')
@@ -89,7 +90,8 @@ def foreman():
     limits.memory = config.memory
     limits.pids = config.pids
     limits.storage = config.storage
-    limits.image_size = config.image_size
+    limits.image = config.image
+    limits.workspace = config.workspace
     limits.time = config.time
     limits.network = config.network
     client = KolejkaClient()
@@ -99,6 +101,7 @@ def foreman():
             if len(tasks) == 0:
                 time.sleep(config.interval)
             else:
+                check_python_volume()
                 while len(tasks) > 0:
                     resources = KolejkaLimits()
                     resources.update(limits)
@@ -121,10 +124,12 @@ def foreman():
                             ok = False
                         if resources.storage is not None and task.limits.storage > resources.storage:
                             ok = False
-                        if resources.image_size is not None:
-                            image_usage_add = max(image_usage.get(task.image, 0), task.limits.image_size) - image_usage.get(task.image, 0)
-                            if image_usage_add > resources.image_size:
+                        if resources.image is not None:
+                            image_usage_add = max(image_usage.get(task.image, 0), task.limits.image) - image_usage.get(task.image, 0)
+                            if image_usage_add > resources.image:
                                 ok = False
+                        if resources.workspace is not None and task.limits.workspace > resources.workspace:
+                            ok = False
                         if ok:
                             proc = Thread(target=foreman_single, args=(config.temp_path, client, task))
                             processes.append(proc)
@@ -137,17 +142,18 @@ def foreman():
                                 resources.pids -= task.limits.pids
                             if resources.storage is not None:
                                 resources.storage -= task.limits.storage
-                            if resources.image_size is not None:
-                                resources.image_size -= image_usage_add
-                                image_usage[task.image] = max(image_usage.get(task.image, 0), task.limits.image_size)
+                            if resources.image is not None:
+                                resources.image -= image_usage_add
+                                image_usage[task.image] = max(image_usage.get(task.image, 0), task.limits.image)
+                            if resources.workspace is not None:
+                                resources.workspace -= task.limits.workspace
                             tasks = tasks[1:]
                             if task.exclusive:
                                 break
                         else:
                             break
-#TODO: manage docker images. Remove old. Pull new. Check sizes.
-                    if config.image_size is not None:
-                        manage_images(config.image_size, image_usage, [task.image for task in tasks])
+                    if config.image is not None:
+                        manage_images(config.image, image_usage, [task.image for task in tasks])
                     for proc in processes:
                         proc.start()
                     for proc in processes:
@@ -167,6 +173,7 @@ def config_parser(parser):
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image-size', action=MemoryAction, help='image size limit')
+    parser.add_argument('--workspace-size', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):

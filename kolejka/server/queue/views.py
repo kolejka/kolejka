@@ -43,12 +43,14 @@ def dequeue(request):
                 continue
             if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
                 continue
-            if resources.image_size is not None:
-                if tt.limits.image_size is None:
+            if resources.image is not None:
+                if tt.limits.image is None:
                     continue
-                image_usage_add = max(image_usage.get(tt.image, 0), tt.limits.image_size) - image_usage.get(tt.image, 0)
-                if image_usage_add > resources.image_size:
+                image_usage_add = max(image_usage.get(tt.image, 0), tt.limits.image) - image_usage.get(tt.image, 0)
+                if image_usage_add > resources.image:
                     continue
+            if resources.workspace is not None and (tt.limits.workspace is None or tt.limits.workspace > resources.workspace):
+                continue
             if resources.network is not None and (tt.limits.network is None or tt.limits.network and not resources.network):
                 continue
             if resources.time is not None and (tt.limits.time is None or tt.limits.time > resources.time):
@@ -65,9 +67,11 @@ def dequeue(request):
                 resources.pids -= tt.limits.pids
             if resources.storage is not None:
                 resources.storage -= tt.limits.storage
-            if resources.image_size is not None:
-                resources.image_size -= image_usage_add
-                image_usage[tt.image] = max(image_usage.get(tt.image, 0), tt.limits.image_size)
+            if resources.image is not None:
+                resources.image -= image_usage_add
+                image_usage[tt.image] = max(image_usage.get(tt.image, 0), tt.limits.image)
+            if resources.workspace is not None:
+                resources.workspace -= tt.limits.workspace
             if tt.exclusive:
                 break
 

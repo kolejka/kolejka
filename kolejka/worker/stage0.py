@@ -49,7 +49,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits.memory = config.memory
     limits.pids = config.pids
     limits.storage = config.storage
-    limits.image_size = config.image_size
+    limits.image = config.image
+    limits.workspace = config.workspace
     limits.time = config.time
     limits.network = config.network
     task.limits.update(limits)
@@ -123,7 +124,15 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
         if task.limits.storage is not None:
-            docker_call += [ '--storage-opt', 'size='+str(task.limits.storage) ]
+            docker_info_run = subprocess.run(['docker', 'system', 'info', '--format', '{{json .Driver}}'], stdout=subprocess.PIPE, check=True)
+            storage_driver = str(json.loads(str(docker_info_run.stdout, 'utf-8')))
+            if storage_driver == 'overlay2':
+                storage_limit = task.limits.storage
+                docker_call += [ '--storage-opt', 'size='+str(storage_limit) ]
+            else:
+                if task.limits.image is not None:
+                    storage_limit = task.limits.storage + task.limits.image
+                    docker_call += [ '--storage-opt', 'size='+str(storage_limit) ]
         if task.limits.network is not None:
             if not task.limits.network:
                 docker_call += [ '--network=none' ]
@@ -229,6 +238,7 @@ def config_parser(parser):
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image-size', action=MemoryAction, help='image size limit')
+    parser.add_argument('--workspace-size', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):

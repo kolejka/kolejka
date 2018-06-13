@@ -53,7 +53,8 @@ def task(request, key):
                 storage=settings.LIMIT_STORAGE,
                 network=settings.LIMIT_NETWORK,
                 time=settings.LIMIT_TIME,
-                image_size=settings.LIMIT_IMAGE_SIZE,
+                image=settings.LIMIT_IMAGE,
+                workspace=settings.LIMIT_WORKSPACE,
             )
         t.limits.update(limits)
         if settings.IMAGE_REGISTRY is not None and settings.IMAGE_REGISTRY_NAME is not None:
@@ -67,8 +68,8 @@ def task(request, key):
             except:
                 raise
                 return FAILResponse(message='Image {} could not be pulled'.format(t.image))
-            if t.limits.image_size is not None and image_size > t.limits.image_size:
-                return FAILResponse(message='Image {} exceeds image size limit {}'.format(t.image, t.limits.image_size))
+            if t.limits.image is not None and image_size > t.limits.image:
+                return FAILResponse(message='Image {} exceeds image size limit {}'.format(t.image, t.limits.image))
             image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_REGISTRY_NAME+':'+image_id
             try:
                 subprocess.run(['docker', 'tag', t.image, image_name], check=True)
@@ -77,7 +78,7 @@ def task(request, key):
             except:
                 return FAILResponse(message='Image {} could not be pushed to local repository'.format(t.image))
             t.image = image_name
-            t.limits.image_size = image_size
+            t.limits.image = image_size
 
         task = models.Task(user=request.user, key=t.id, description=json.dumps(t.dump()))
         task.save()
