@@ -66,7 +66,6 @@ def task(request, key):
                 docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', '--format', '{{json .Size}}', t.image], stdout=subprocess.PIPE, check=True)
                 image_size = int(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
             except:
-                raise
                 return FAILResponse(message='Image {} could not be pulled'.format(t.image))
             if t.limits.image is not None and image_size > t.limits.image:
                 return FAILResponse(message='Image {} exceeds image size limit {}'.format(t.image, t.limits.image))

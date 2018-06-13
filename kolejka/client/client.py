@@ -33,9 +33,13 @@ class KolejkaClientUploadError(KolejkaClientError):
     pass
 
 class KolejkaClient:
-    def __init__(self):
+    def __init__(self, max_retries=3):
         self.config = client_config()
         self.session = requests.session()
+        if max_retries is not None:
+            adapter = requests.adapters.HTTPAdapter(max_retries=max_retries)
+            self.session.mount('http://', adapter)
+            self.session.mount('https://', adapter)
         for k,v in self.get('/settings/').json().items():
             self.config.__setattr__(k, v)
         if self.config.username is not None and self.config.password is not None:
@@ -59,17 +63,22 @@ class KolejkaClient:
 
     def check_response(self, response):
         if response.status_code == requests.codes.forbidden:
+            response.close()
             raise KolejkaClientAuthorizationError()
         if response.status_code == requests.codes.not_found:
+            response.close()
             raise KolejkaClientObjectNotFoundError()
         if response.status_code != requests.codes.ok:
+            response.close()
             raise KolejkaClientRemoteError()
         if response.headers.get('content-type','') == 'application/json':
             j = response.json()
             if isinstance(j, dict) and 'status' in j:
                 if j['status'] != 'OK':
                     if 'message' in j:
+                        response.close()
                         raise KolejkaClientRemoteError(j['message'])
+                    response.close()
                     raise KolejkaClientRemoteError()
         return response
 
@@ -197,8 +206,7 @@ class KolejkaClient:
         response = self.get('/task/task/{}/'.format(task_key))
         os.makedirs(task_path, exist_ok=True)
         task = KolejkaTask(task_path)
-        desc = response.json()['task']
-        task.load(desc)
+        task.load(response.json()['task'])
         for k,f in task.files.items():
             self.blob_get(os.path.join(task.path, k), f.reference)
             f.path = k
