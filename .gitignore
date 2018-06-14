@@ -14,3 +14,4 @@ deb_dist/
 *.tar.gz
 *.tar.xz
 [0-9][0-9][0-9][0-9]_*.py
+/examples/*-result/
