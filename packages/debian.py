@@ -7,7 +7,7 @@ import shutil
 import subprocess
 
 DISTRO='DEBIANDISTRO'
-DISTROS=['xenial', 'artful', 'bionic']
+DISTROS=['bionic', 'xenial', 'artful']
 
 if os.path.exists('deb_dist'):
     shutil.rmtree('deb_dist')
