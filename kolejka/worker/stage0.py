@@ -237,8 +237,8 @@ def config_parser(parser):
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
-    parser.add_argument('--image-size', action=MemoryAction, help='image size limit')
-    parser.add_argument('--workspace-size', action=MemoryAction, help='workspace size limit')
+    parser.add_argument('--image', action=MemoryAction, help='image size limit')
+    parser.add_argument('--workspace', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
     def execute(args):
