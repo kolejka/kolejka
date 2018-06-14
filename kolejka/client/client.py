@@ -403,6 +403,7 @@ def config_parser_execute(parser):
         task = KolejkaTask(args.task)
         response = client.task_put(task)
         while True:
+            client.session.close()
             time.sleep(args.interval)
             try:
                 result = client.result_get(response.id, args.result)
