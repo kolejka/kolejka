@@ -127,6 +127,9 @@ def observer_stop(session_id, secret):
     conn.request('POST', 'stats', body, headers)
     with conn.getresponse() as response:
         response_body = json.loads(response.read().decode('utf-8'))
+    conn.request('POST', 'leave', body, headers)
+    conn.getresponse()
+    conn.close()
     conn.request('POST', 'close', body, headers)
     conn.getresponse()
     conn.close()
