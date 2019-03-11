@@ -457,6 +457,23 @@ class KolejkaObserverServer(ObserverServer):
         assert os.path.isdir(socket_dir_path)
         super().__init__(socket_path, ObserverHandler)
 
+def config_parser(parser):
+    from kolejka.common.settings import OBSERVER_SOCKET
+    from kolejka.observer import KolejkaObserverServer
+    parser.add_argument("-s", "--socket", type=str, default=OBSERVER_SOCKET, help='listen on socket')
+    parser.add_argument("--detach", action="store_true", default=False, help='run in background')
+    parser.add_argument("--pid-file", type=str, default=OBSERVER_PID_FILE, help='pid file')
+    def execute(args):
+        with KolejkaObserverServer(args.socket) as server:
+            def action():
+                return server.serve_forever()
+            if args.detach:
+                with daemon.DaemonContext(pidfile=args.pid_file):
+                    action()
+            else:
+                action()
+    parser.set_defaults(execute=execute)
+
 def main():
     import argparse
     import daemon
@@ -464,15 +481,12 @@ def main():
     import os
     import setproctitle
     import traceback
-    from kolejka.common.settings import OBSERVER_SOCKET
-    from kolejka.observer import KolejkaObserverServer
 
+    setproctitle.setproctitle('kolejka-observer')
     parser = argparse.ArgumentParser(description='KOLEJKA observer')
-    parser.add_argument("-s", "--socket", type=str, default=OBSERVER_SOCKET, help='listen on socket')
     parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
     parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
-    parser.add_argument("--detach", action="store_true", default=False, help='run in background')
-    parser.add_argument("--pid-file", type=str, default=OBSERVER_PID_FILE, help='pid file')
+    config_parser(parser)
     args = parser.parse_args()
     level=logging.WARNING
     if args.verbose:
@@ -480,16 +494,7 @@ def main():
     if args.debug:
         level=logging.DEBUG
     logging.basicConfig(level=level)
-    setproctitle.setproctitle('kolejka-observer')
-
-    with KolejkaObserverServer(args.socket) as server:
-        def action():
-            return server.serve_forever()
-        if args.detach:
-            with daemon.DaemonContext(pidfile=args.pid_file):
-                action()
-        else:
-            action()
+    args.execute(args)
 
 if __name__ == '__main__':
     main()
