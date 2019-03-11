@@ -127,7 +127,7 @@ class Session:
                 tasks_file.write(str(pid))
         logging.debug('Attached process %s to session %s'%(str(pid), self.id))
 
-    def leave(self, pid):
+    def detach(self, pid):
         pid_groups = self.system.pid_groups(pid)
         for group in OBSERVER_CGROUPS:
             assert os.path.join(pid_groups[group], self.group_name) == self.groups[group] or pid_groups[group] == self.groups[group]
@@ -136,7 +136,7 @@ class Session:
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
                 tasks_file.write(str(pid))
-        logging.debug('Deattached process %s from session %s'%(str(pid), self.id))
+        logging.debug('Detached process %s from session %s'%(str(pid), self.id))
 
     def limits(self, limits=KolejkaLimits()):
         if limits.memory is not None:
@@ -241,9 +241,9 @@ class SessionRegistry:
             self.sessions[session_id] = Session(self, session_id, pid)
         return self.sessions[session_id].attach(pid=pid);
 
-    def leave(self, session_id, pid):
+    def detach(self, session_id, pid):
         assert session_id in self.sessions
-        return self.sessions[session_id].leave(pid=pid);
+        return self.sessions[session_id].detach(pid=pid);
 
     def limits(self, session_id, limits=KolejkaLimits()):
         assert session_id in self.sessions
@@ -333,8 +333,8 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             fun = self.cmd_attach
             if 'session_id' in params:
                 check_session = True
-        elif path == 'leave':
-            fun = self.cmd_leave
+        elif path == 'detach':
+            fun = self.cmd_detach
             check_session = True
         elif path == 'limits':
             fun = self.cmd_limits
@@ -423,11 +423,11 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         result['status'] = 'ok'
         return result
 
-    def cmd_leave(self, params):
+    def cmd_detach(self, params):
         result = dict()
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
-        self.session_registry.leave(sparams.session_id, pid)
+        self.session_registry.detach(sparams.session_id, pid)
         result['status'] = 'ok'
         return result
 
