@@ -32,6 +32,10 @@ class Session:
         assert group in self.groups
         return os.path.join(self.system.mount_point(group), self.groups[group].strip('/'), filename.strip('/')).rstrip('/')
 
+    def parent_group_path(self, group, filename=''):
+        assert group in self.groups
+        return os.path.join(self.system.mount_point(group), self.parent_groups[group].strip('/'), filename.strip('/')).rstrip('/')
+
     def list_group(self, group):
         result = set()
         path = self.group_path(group)
@@ -94,9 +98,11 @@ class Session:
         self.creator_pid = pid
         self.creator_start_time = self.pid_start_time(self.creator_pid)
         pid_groups = self.system.pid_groups(pid)
+        self.parent_groups = dict()
         self.groups = dict()
         for group in OBSERVER_CGROUPS:
-            self.groups[group] = os.path.join(pid_groups[group], self.group_name)
+            self.parent_groups[group] = pid_groups[group]
+            self.groups[group] = os.path.join(self.parent_groups[group], self.group_name)
         for group in OBSERVER_CGROUPS:
             if group == 'memory':
                 with open(os.path.join(os.path.dirname(self.group_path(group)), 'memory.use_hierarchy')) as f:
@@ -120,6 +126,17 @@ class Session:
             with open(tasks_path, 'w') as tasks_file:
                 tasks_file.write(str(pid))
         logging.debug('Attached process %s to session %s'%(str(pid), self.id))
+
+    def detach(self, pid):
+        pid_groups = self.system.pid_groups(pid)
+        for group in OBSERVER_CGROUPS:
+            assert os.path.join(pid_groups[group], self.group_name) == self.groups[group] or pid_groups[group] == self.groups[group]
+        for group in OBSERVER_CGROUPS:
+            tasks_path = self.parent_group_path(group, filename='tasks')
+            assert os.path.isfile(tasks_path)
+            with open(tasks_path, 'w') as tasks_file:
+                tasks_file.write(str(pid))
+        logging.debug('Detached process %s from session %s'%(str(pid), self.id))
 
     def limits(self, limits=KolejkaLimits()):
         if limits.memory is not None:
@@ -224,6 +241,10 @@ class SessionRegistry:
             self.sessions[session_id] = Session(self, session_id, pid)
         return self.sessions[session_id].attach(pid=pid);
 
+    def detach(self, session_id, pid):
+        assert session_id in self.sessions
+        return self.sessions[session_id].detach(pid=pid);
+
     def limits(self, session_id, limits=KolejkaLimits()):
         assert session_id in self.sessions
         return self.sessions[session_id].limits(limits=limits)
@@ -312,6 +333,9 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             fun = self.cmd_attach
             if 'session_id' in params:
                 check_session = True
+        elif path == 'detach':
+            fun = self.cmd_detach
+            check_session = True
         elif path == 'limits':
             fun = self.cmd_limits
             check_session = True
@@ -396,6 +420,14 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         pid = int(self.client_address[0])
         sparams = ObserverHandler.std_params(params)
         self.session_registry.attach(sparams.session_id, pid)
+        result['status'] = 'ok'
+        return result
+
+    def cmd_detach(self, params):
+        result = dict()
+        pid = int(self.client_address[0])
+        sparams = ObserverHandler.std_params(params)
+        self.session_registry.detach(sparams.session_id, pid)
         result['status'] = 'ok'
         return result
 

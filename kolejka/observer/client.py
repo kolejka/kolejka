@@ -51,6 +51,10 @@ class KolejkaObserverClient:
         if session is not None:
             self.session = session
         return self.post('attach')
+    def detach(self, session=None):
+        if session is not None:
+            self.session = session
+        return self.post('detach')
     def limits(self, limits):
         return self.post('limits', { 'limits' : limits.dump() })
     def stats(self):
