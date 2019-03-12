@@ -12,6 +12,15 @@ kolejka_common = {
         'name' : 'KolejkaCommon',
         'description' : 'Kolejka Common',
         'packages' : sub_find_packages('kolejka.common'),
+        'install_requires' : [
+            'appdirs',
+            'setproctitle',
+        ],
+        'entry_points' : {
+            'console_scripts' : [
+                'kolejka = kolejka.common:main',
+            ],
+        },
     }
 
 if __name__ == '__main__':
