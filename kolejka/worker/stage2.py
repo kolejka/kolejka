@@ -77,7 +77,7 @@ class HTTPUnixConnection(http.client.HTTPConnection):
         if self._tunnel_host:
             self._tunnel()
 
-def observer_start(cpus, cpus_offset, memory, pids):
+def observer_start(cpus, cpus_offset, memory, swap, pids):
     if not os.path.exists(OBSERVER_SOCKET):
         logging.error('Limits enabled with no kolejka-observer socket present')
         sys.exit(0)
@@ -90,7 +90,7 @@ def observer_start(cpus, cpus_offset, memory, pids):
         response_body = json.loads(response.read().decode('utf-8'))
     session_id = response_body['session_id']
     secret = response_body['secret']
-    if cpus is not None or memory is not None or pids is not None: 
+    if cpus is not None or memory is not None or swap is not None or pids is not None: 
         limits = dict()
         if cpus is not None:
             limits['cpus'] = int(cpus)
@@ -98,6 +98,8 @@ def observer_start(cpus, cpus_offset, memory, pids):
             limits['cpus_offset'] = int(cpus_offset)
         if memory is not None:
             limits['memory'] = int(memory)
+        if swap is not None:
+            limits['swap'] = int(swap)
         if pids is not None:
             limits['pids'] = int(pids)
         params = dict()
@@ -129,13 +131,12 @@ def observer_stop(session_id, secret):
         response_body = json.loads(response.read().decode('utf-8'))
     conn.request('POST', 'detach', body, headers)
     conn.getresponse()
-    conn.close()
     conn.request('POST', 'close', body, headers)
     conn.getresponse()
     conn.close()
     return response_body
 
-def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=None, pids=None):
+def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=None, swap=None, pids=None):
     if not os.path.isdir(task_path):
         logging.error('Provided task path is not a directory')
         sys.exit(1)
@@ -171,6 +172,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     task_cpus = parse_int(task.get('limits', dict()).get('cpus', None))
     task_cpus_offset = parse_int(task.get('limits', dict()).get('cpus_offset', None))
     task_memory = parse_memory(task.get('limits', dict()).get('memory', None))
+    task_swap = parse_memory(task.get('limits', dict()).get('swap', None))
     task_pids = parse_int(task.get('limits', dict()).get('pids', None))
     task_env = task.get('environment', dict())
 
@@ -180,6 +182,8 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         cpus_offset = task_cpus_offset
     if task_memory is not None and (memory is None or task_memory < memory):
         memory = task_memory
+    if task_swap is not None and (swap is None or task_swap < swap):
+        swap = task_swap
     if task_pids is not None and (pids is None or task_pids < pids):
         pids = task_pids
     
@@ -196,15 +200,17 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         summary['limits']['cpus_offset'] = cpus_offset
     if memory is not None:
         summary['limits']['memory'] = memory
+    if swap is not None:
+        summary['limits']['swap'] = swap
     if pids is not None:
         summary['limits']['pids'] = pids
 
     observer = None
     if os.path.exists(OBSERVER_SOCKET):
-        observer = observer_start(cpus, cpus_offset, memory, pids)
+        observer = observer_start(cpus, cpus_offset, memory, swap, pids)
         logging.info('Using Kolejka Observer to limit task and collect stats.')
     else:
-        if cpus is not None or memory is not None or pids is not None:
+        if cpus is not None or memory is not None or swap is not None or pids is not None:
             logging.error('Can\'t limit task without Kolejka Observer running.')
             sys.exit(1)
 
@@ -325,9 +331,10 @@ def config_parser(parser):
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--cpus-offset', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     def execute(args):
-        stage2(args.task, args.result, args.consume, cpus=args.cpus, cpus_offset=args.cpus_offset, memory=args.memory, pids=args.pids)
+        stage2(args.task, args.result, args.consume, cpus=args.cpus, cpus_offset=args.cpus_offset, memory=args.memory, swap=args.swap, pids=args.pids)
     parser.set_defaults(execute=execute)
 
 def main():

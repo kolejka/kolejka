@@ -49,6 +49,7 @@ def task(request, key):
         limits = KolejkaLimits(
                 cpus=settings.LIMIT_CPUS,
                 memory=settings.LIMIT_MEMORY,
+                swap=settings.LIMIT_SWAP,
                 pids=settings.LIMIT_PIDS,
                 storage=settings.LIMIT_STORAGE,
                 network=settings.LIMIT_NETWORK,

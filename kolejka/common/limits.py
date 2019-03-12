@@ -28,6 +28,7 @@ class KolejkaLimits:
         self.cpus = parse_int(args.get('cpus', None))
         self.cpus_offset = parse_int(args.get('cpus_offset', None))
         self.memory = parse_memory(args.get('memory', None))
+        self.swap = parse_memory(args.get('swap', None))
         self.network = parse_bool(args.get('network', None))
         self.pids = parse_int(args.get('pids', None))
         self.storage = parse_memory(args.get('storage', None))
@@ -43,6 +44,8 @@ class KolejkaLimits:
             res['cpus_offset'] = self.cpus_offset
         if self.memory is not None:
             res['memory'] = unparse_memory(self.memory)
+        if self.swap is not None:
+            res['swap'] = unparse_memory(self.swap)
         if self.network is not None:
             res['network'] = self.network
         if self.pids is not None:
@@ -61,6 +64,7 @@ class KolejkaLimits:
         self.cpus = min_none(self.cpus, other.cpus)
         self.cpus_offset = min_none(self.cpus_offset, other.cpus_offset)
         self.memory = min_none(self.memory, other.memory)
+        self.swap = min_none(self.swap, other.swap)
         self.network = min_none(self.network, other.network)
         self.pids = min_none(self.pids, other.pids)
         self.storage = min_none(self.storage, other.storage)
@@ -101,6 +105,9 @@ class KolejkaStats:
             self.usage = parse_memory(args.get('usage', None))
             self.max_usage = parse_memory(args.get('max_usage', None))
             self.max_usage = max_none(self.max_usage, self.usage)
+            self.swap = parse_memory(args.get('swap', None))
+            self.max_swap = parse_memory(args.get('max_swap', None))
+            self.max_swap = max_none(self.max_swap, self.swap)
             self.failures = parse_int(args.get('failures', None))
         def dump(self):
             res = dict()
@@ -108,6 +115,10 @@ class KolejkaStats:
                 res['usage'] = unparse_memory(self.usage)
             if self.max_usage is not None:
                 res['max_usage'] = unparse_memory(self.max_usage)
+            if self.swap is not None:
+                res['swap'] = unparse_memory(self.swap)
+            if self.max_swap is not None:
+                res['max_swap'] = unparse_memory(self.max_swap)
             if self.failures is not None:
                 res['failures'] = self.failures
             return res
@@ -115,6 +126,9 @@ class KolejkaStats:
             if other.usage is not None:
                 self.usage = other.usage
             self.max_usage = max_none(self.max_usage, other.max_usage, self.usage)
+            if other.swap is not None:
+                self.swap = other.swap
+            self.max_swap = max_none(self.max_swap, other.max_swap, self.swap)
             self.failures = max_none(self.failures, other.failures)
 
     class PidsStats:

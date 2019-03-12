@@ -145,6 +145,12 @@ class Session:
             with open(limit_file, 'w') as f:
                 f.write(str(limits.memory))
             logging.debug('Limited session %s memory to %s bytes'%(self.id, limits.memory))
+            if limits.swap is not None:
+                assert 'memory' in self.groups
+                limit_file = self.group_path('memory', filename='memory.memsw.limit_in_bytes')
+                with open(limit_file, 'w') as f:
+                    f.write(str(limits.memory+limits.swap))
+                logging.debug('Limited session %s swap to %s bytes'%(self.id, limits.swap))
         if limits.cpus is not None:
             assert 'cpuset' in self.groups
             cpuset_cpus = self.available_cpus()

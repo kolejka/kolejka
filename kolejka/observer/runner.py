@@ -74,6 +74,7 @@ def main():
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--cpus-offset', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('args', nargs=argparse.REMAINDER, help='command line to run')
@@ -90,6 +91,7 @@ def main():
     limits.cpus = args.cpus
     limits.cpus_offset = args.cpus_offset
     limits.memory = args.memory
+    limits.swap = args.swap
     limits.pids = args.pids
     limits.time = args.time
 

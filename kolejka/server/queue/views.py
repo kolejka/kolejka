@@ -39,6 +39,8 @@ def dequeue(request):
                 continue
             if resources.memory is not None and (tt.limits.memory is None or tt.limits.memory > resources.memory):
                 continue
+            if resources.swap is not None and (tt.limits.swap is None or tt.limits.swap > resources.swap):
+                continue
             if resources.pids is not None and (tt.limits.pids is None or tt.limits.pids > resources.pids):
                 continue
             if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
@@ -63,6 +65,8 @@ def dequeue(request):
                 resources.cpus -= tt.limits.cpus
             if resources.memory is not None:
                 resources.memory -= tt.limits.memory
+            if resources.swap is not None:
+                resources.swap -= tt.limits.swap
             if resources.pids is not None:
                 resources.pids -= tt.limits.pids
             if resources.storage is not None:

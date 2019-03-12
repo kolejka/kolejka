@@ -88,6 +88,7 @@ def foreman():
     limits = KolejkaLimits()
     limits.cpus = config.cpus
     limits.memory = config.memory
+    limits.swap = config.swap
     limits.pids = config.pids
     limits.storage = config.storage
     limits.image = config.image
@@ -120,6 +121,8 @@ def foreman():
                             ok = False
                         if resources.memory is not None and task.limits.memory > resources.memory:
                             ok = False
+                        if resources.swap is not None and task.limits.swap > resources.swap:
+                            ok = False
                         if resources.pids is not None and task.limits.pids > resources.pids:
                             ok = False
                         if resources.storage is not None and task.limits.storage > resources.storage:
@@ -138,6 +141,8 @@ def foreman():
                                 resources.cpus -= task.limits.cpus
                             if resources.memory is not None:
                                 resources.memory -= task.limits.memory
+                            if resources.swap is not None:
+                                resources.swap -= task.limits.swap
                             if resources.pids is not None:
                                 resources.pids -= task.limits.pids
                             if resources.storage is not None:
@@ -170,6 +175,7 @@ def config_parser(parser):
     parser.add_argument('--concurency', type=int, help='number of simultaneous tasks')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image', action=MemoryAction, help='image size limit')

@@ -47,6 +47,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits = KolejkaLimits()
     limits.cpus = config.cpus
     limits.memory = config.memory
+    limits.swap = config.swap
     limits.pids = config.pids
     limits.storage = config.storage
     limits.image = config.image
@@ -91,7 +92,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                     shutil.copy(src_path, dst_path)
                 jailed.files.add(key)
         jailed.files.add(TASK_SPEC)
-        jailed.limits = KolejkaLimits() #TODO: Task is limited by docker, no need to limit it again?
+        #jailed.limits = KolejkaLimits() #TODO: Task is limited by docker, no need to limit it again?
         jailed.commit()
         volumes.append((jailed.path, os.path.join(WORKER_DIRECTORY, 'task'), 'rw'))
         if consume_task_folder:
@@ -123,6 +124,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
+            if task.limits.swap is not None:
+                docker_call += [ '--memory-swap', str(task.limits.memory + task.limits.swap) ]
         if task.limits.storage is not None:
             docker_info_run = subprocess.run(['docker', 'system', 'info', '--format', '{{json .Driver}}'], stdout=subprocess.PIPE, check=True)
             storage_driver = str(json.loads(str(docker_info_run.stdout, 'utf-8')))
@@ -136,7 +139,6 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         if task.limits.network is not None:
             if not task.limits.network:
                 docker_call += [ '--network=none' ]
-        docker_call += [ '--memory-swap', str(0) ]
         docker_call += [ '--cap-add', 'SYS_NICE' ]
         if task.limits.pids is not None:
             docker_call += [ '--pids-limit', str(task.limits.pids) ]
@@ -209,6 +211,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             result.stats.time = stop_time - start_time
         result.stats.pids.usage = None
         result.stats.memory.usage = None
+        result.stats.memory.swap = None
 
         for dirpath, dirnames, filenames in os.walk(jailed_result_path):
             for filename in filenames:
@@ -235,6 +238,7 @@ def config_parser(parser):
     parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image', action=MemoryAction, help='image size limit')

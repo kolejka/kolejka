@@ -182,6 +182,7 @@ class KolejkaClient:
         limits = KolejkaLimits()
         limits.cpus = self.config.cpus
         limits.memory = self.config.memory
+        limits.swap = self.config.swap
         limits.pids = self.config.pids
         limits.storage = self.config.storage
         limits.image = self.config.image
@@ -307,6 +308,7 @@ def config_parser_task_put(parser):
     parser.add_argument('task', type=str, help='task folder')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image', action=MemoryAction, help='image size limit')
@@ -391,6 +393,7 @@ def config_parser_execute(parser):
     parser.add_argument('--consume', action='store_true', default=False, help='consume task folder') 
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
+    parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--storage', action=MemoryAction, help='storage limit')
     parser.add_argument('--image', action=MemoryAction, help='image size limit')

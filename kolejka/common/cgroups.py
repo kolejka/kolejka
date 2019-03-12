@@ -116,15 +116,36 @@ class ControlGroupSystem:
             for i,c in zip(range(len(cpusplit)), cpusplit):
                 result.cpus[str(i)] = KolejkaStats.CpusStats(usage = 10**-9*float(c))
         if 'memory' in groups and 'memory' in self.mount_points:
-            usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.usage_in_bytes')
-            with open(usage_file) as f:
-                result.memory.usage = int(f.readline().strip())
-            usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.max_usage_in_bytes')
-            with open(usage_file) as f:
-                result.memory.max_usage = int(f.readline().strip())
-            usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.failcnt')
-            with open(usage_file) as f:
-                result.memory.failures = int(f.readline().strip())
+            try:
+                usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.usage_in_bytes')
+                with open(usage_file) as f:
+                    result.memory.usage = int(f.readline().strip())
+            except:
+                pass
+            try:
+                usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.max_usage_in_bytes')
+                with open(usage_file) as f:
+                    result.memory.max_usage = max(result.memory.usage, int(f.readline().strip()))
+            except:
+                pass
+            try:
+                usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.memsw.usage_in_bytes')
+                with open(usage_file) as f:
+                    result.memory.swap = max(0, int(f.readline().strip()) - result.memory.usage)
+            except:
+                pass
+            try:
+                usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.memsw.max_usage_in_bytes')
+                with open(usage_file) as f:
+                    result.memory.max_swap = max(result.memory.swap, int(f.readline().strip()) - result.memory.max_usage)
+            except:
+                pass
+            try:
+                usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.failcnt')
+                with open(usage_file) as f:
+                    result.memory.failures = int(f.readline().strip())
+            except:
+                pass
         if 'pids' in groups and 'pids' in self.mount_points:
             usage_file = os.path.join(self.mount_point('pids'), groups['pids'].strip('/'), 'pids.current')
             with open(usage_file) as f:

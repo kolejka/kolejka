@@ -87,6 +87,7 @@ BLOB_STORE_PATH = os.path.join(PROJECT_DIR, '../kolejka-server-blobs')
 
 LIMIT_CPUS = None
 LIMIT_MEMORY = None
+LIMIT_SWAP = None
 LIMIT_PIDS = None
 LIMIT_STORAGE = None 
 LIMIT_NETWORK = None
