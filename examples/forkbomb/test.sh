@@ -1,16 +1,20 @@
 #!/bin/sh
+EXAMPLE="forkbomb"
 
 echo "###############"
 echo "KOLEJKA EXAMPLE"
 echo "System: $(whoami)@$(hostname):$(pwd)"
 echo "Date: $(date)"
+echo "Example: ${EXAMPLE}"
 echo "###############"
 echo ""
 
 call() {
     echo "#>" "$@"
     "$@"
+    res="$?"
     echo ""
+    return "${res}"
 }
 
 call g++ --version

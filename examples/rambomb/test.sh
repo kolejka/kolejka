@@ -1,5 +1,5 @@
 #!/bin/sh
-EXAMPLE="gcc"
+EXAMPLE="forkbomb"
 
 echo "###############"
 echo "KOLEJKA EXAMPLE"
@@ -13,6 +13,7 @@ call() {
     echo "#>" "$@"
     "$@"
     res="$?"
+    echo "?>" "${res}"
     echo ""
     return "${res}"
 }

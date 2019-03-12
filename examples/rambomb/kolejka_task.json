@@ -1,5 +1,5 @@
 {
-  "id": "example_gcc",
+  "id": "example_forkbomb",
   "image": "gcc:latest",
   "files": {
     "test.sh" : {
@@ -12,6 +12,11 @@
   "args": [
     "./test.sh"
   ],
+  "limits": {
+      "time" : "10s",
+      "memory" : "256M",
+      "swap" : 0
+  },
   "stderr": "console.txt",
   "stdout": "console.txt"
 }
