@@ -1,21 +1,24 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import cgi
+import datetime
 import hashlib
 import http.server
 import json
 import logging
+from multiprocessing import Process
 import os
 import re
 import signal
 import socket
 import socketserver
+import time
 import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
 from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_PID_FILE, OBSERVER_SERVERSTRING
-from kolejka.common import HTTPUnixServer
+from kolejka.common import HTTPUnixServer, HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 from kolejka.common import ControlGroupSystem
 
@@ -115,6 +118,8 @@ class Session:
                         with open(os.path.join(self.group_path(group), inherit), 'w') as t:
                             t.write(f.read())
         logging.debug('Created session %s with paths [%s] for pid %s'%(self.id, ','.join(self.groups.values()), self.creator_pid))
+        self.start_time = time.perf_counter()
+        self.close_time = None
 
     def attach(self, pid):
         pid_groups = self.system.pid_groups(pid)
@@ -170,6 +175,11 @@ class Session:
             with open(limit_file, 'w') as f:
                 f.write(str(limits.pids))
             logging.debug('Limited session %s pids to %s'%(self.id, limits.pids))
+        if limits.time is not None:
+            self.close_time = self.start_time + limits.time.total_seconds()
+            logging.debug('Limited session %s time to %f'%(self.id, limits.time.total_seconds()))
+        else:
+            self.close_time = None
 
     def freeze(self, freeze=True):
         assert 'freezer' in self.groups
@@ -195,7 +205,11 @@ class Session:
             return f.readline().strip() == '1'
 
     def stats(self):
-        return self.system.groups_stats(self.groups)
+        stats = self.system.groups_stats(self.groups)
+        time_stats = KolejkaStats()
+        time_stats.time = datetime.timedelta(seconds = max(0, time.perf_counter() - self.start_time))
+        stats.update(time_stats)
+        return stats
 
     def kill(self):
         state = self.freezing()
@@ -220,6 +234,7 @@ class Session:
             self.freeze(freeze=False)
         except:
             pass
+        time.sleep(0.1) #TODO: Allow thawed killed processes to die. HOW?
         self.system.groups_close(self.groups)
         logging.debug('CLOSED session %s'%(self.id))
             
@@ -234,7 +249,10 @@ class SessionRegistry:
             self.close(session_id)
 
     def cleanup_finished(self):
+        current_time = time.perf_counter()
         for session_id, session in list(self.sessions.items()):
+            if session.close_time is not None and session.close_time < current_time:
+                self.close(session_id)
             if session.finished():
                 self.close(session_id)
 
@@ -299,13 +317,31 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
     def version_string(self):
         return OBSERVER_SERVERSTRING
 
+    def send_json(self, result=None, code=200, message=None):
+        try:
+            result = json.dumps(result)
+        except:
+            logging.warning(traceback.format_exc())
+            self.send_error(500)
+            self.end_headers()
+            return
+        else:
+            result = bytes(result, 'utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', len(result))
+            self.end_headers()
+            self.wfile.write(result)
+
     def do_HEAD(self):
         self.session_registry.cleanup_finished()
         self.send_response(200)
+        self.end_headers()
 
     def do_GET(self, params_override={}):
         self.session_registry.cleanup_finished()
         self.send_response(200)
+        self.end_headers()
 
     def do_POST(self):
         self.session_registry.cleanup_finished()
@@ -324,6 +360,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         except:
             logging.warning(traceback.format_exc())
             self.send_error(400)
+            self.end_headers()
             return
         else:
             return self.cmd(path, post_data)
@@ -348,6 +385,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
         elif path == 'stats':
             if 'session_id' not in params:
                 self.send_error(400)
+                self.end_headers()
                 return
             fun = self.cmd_stats
         elif path == 'freeze':
@@ -367,26 +405,23 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             group = params['group']
             if not re.match(r'[a-z0-9_.]*', group) or len(group) > 32:
                 self.send_error(403)
+                self.end_headers()
                 return
 
         if check_session:
             if not self.check_secret(params.get('session_id', ''), params.get('secret', '')):
                 self.send_error(403)
+                self.end_headers()
                 return
         try:
             result = fun(params)
-            result = json.dumps(result)
         except:
             logging.warning(traceback.format_exc())
             self.send_error(500)
+            self.end_headers()
             return
         else:
-            result = bytes(result, 'utf-8')
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
-            self.send_header('Content-Length', len(result))
-            self.end_headers()
-            self.wfile.write(result)
+            self.send_json(result)
 
     def cmd_default(self, params):
         raise Exception('method unknown')
@@ -489,11 +524,33 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
 
 class KolejkaObserverServer(ObserverServer):
     def __init__(self, socket_path):
-        socket_path = os.path.realpath(os.path.abspath(socket_path))
-        socket_dir_path = os.path.dirname(socket_path)
+        self.socket_path = os.path.realpath(os.path.abspath(socket_path))
+        socket_dir_path = os.path.dirname(self.socket_path)
         os.makedirs(socket_dir_path, exist_ok=True)
         assert os.path.isdir(socket_dir_path)
-        super().__init__(socket_path, ObserverHandler)
+        super().__init__(self.socket_path, ObserverHandler)
+
+    def __enter__(self, *args, **kwargs):
+        super().__enter__(*args, **kwargs)
+        def scheduler_func(parent, socket_path):
+            while os.getppid() == parent:
+                time.sleep(1)
+                try:
+                    connection = HTTPUnixConnection(socket_path)
+                    connection.request('HEAD', '/')
+                    with connection.getresponse() as response:
+                        response.read()
+                    connection.close()
+                except:
+                    traceback.print_exc()
+                    pass
+        self.scheduler = Process(target=scheduler_func, args=(os.getpid(), self.socket_path))
+        self.scheduler.start()
+        return self
+    def __exit__(self, *args, **kwargs):
+        self.scheduler.terminate()
+        self.scheduler.join()
+        return super().__exit__(*args, **kwargs)
 
 def config_parser(parser):
     from kolejka.common.settings import OBSERVER_SOCKET

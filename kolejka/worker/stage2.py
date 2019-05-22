@@ -3,6 +3,7 @@
 #THIS SCRIPT MAY IMPORT ONLY STANDARD LIBRARY MODULES
 
 import argparse
+import datetime
 import glob
 import http.client
 import json
@@ -56,6 +57,20 @@ def parse_memory(x):
             'P' : 1024**5,
         })))
 
+def parse_time(x) :
+    if x is not None:
+        if isinstance(x, datetime.timedelta):
+            return x
+        return datetime.timedelta(seconds=parse_float_with_modifiers(x, {
+            'D' : 60**2*24,
+            'H' : 60**2,
+            'M' : 60,
+            's' : 1,
+            'm' : 10**-3,
+            'µ' : 10**-6,
+            'n' : 10**-9,
+        }))
+
 class MemoryAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         self.type = int
@@ -64,6 +79,15 @@ class MemoryAction(argparse.Action):
         super().__init__(option_strings, dest, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, parse_memory(values))
+
+class TimeAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.type = datetime.timedelta
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, parse_time(values))
 
 class HTTPUnixConnection(http.client.HTTPConnection):
     def _get_hostport(self, host, port):
@@ -77,7 +101,7 @@ class HTTPUnixConnection(http.client.HTTPConnection):
         if self._tunnel_host:
             self._tunnel()
 
-def observer_start(cpus, cpus_offset, memory, swap, pids):
+def observer_start(cpus, cpus_offset, memory, swap, pids, time):
     if not os.path.exists(OBSERVER_SOCKET):
         logging.error('Limits enabled with no kolejka-observer socket present')
         sys.exit(0)
@@ -102,6 +126,8 @@ def observer_start(cpus, cpus_offset, memory, swap, pids):
             limits['swap'] = int(swap)
         if pids is not None:
             limits['pids'] = int(pids)
+        if time is not None:
+            limits['time'] = float(time.total_seconds()) 
         params = dict()
         params['limits'] = limits
         params['session_id'] = session_id
@@ -136,7 +162,7 @@ def observer_stop(session_id, secret):
     conn.close()
     return response_body
 
-def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=None, swap=None, pids=None):
+def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=None, swap=None, pids=None, time=None):
     if not os.path.isdir(task_path):
         logging.error('Provided task path is not a directory')
         sys.exit(1)
@@ -174,6 +200,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     task_memory = parse_memory(task.get('limits', dict()).get('memory', None))
     task_swap = parse_memory(task.get('limits', dict()).get('swap', None))
     task_pids = parse_int(task.get('limits', dict()).get('pids', None))
+    task_time = parse_time(task.get('limits', dict()).get('time', None))
     task_env = task.get('environment', dict())
 
     if task_cpus is not None and (cpus is None or task_cpus < cpus):
@@ -186,6 +213,8 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         swap = task_swap
     if task_pids is not None and (pids is None or task_pids < pids):
         pids = task_pids
+    if task_time is not None and (time is None or task_time.total_seconds() < time.total_seconds()):
+        time = task_time
     
     summary = dict()
     summary['files'] = dict()
@@ -204,13 +233,15 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
         summary['limits']['swap'] = swap
     if pids is not None:
         summary['limits']['pids'] = pids
+    if time is not None:
+        summary['limits']['time'] = time.total_seconds()
 
     observer = None
     if os.path.exists(OBSERVER_SOCKET):
-        observer = observer_start(cpus, cpus_offset, memory, swap, pids)
+        observer = observer_start(cpus, cpus_offset, memory, swap, pids, time)
         logging.info('Using Kolejka Observer to limit task and collect stats.')
     else:
-        if cpus is not None or memory is not None or swap is not None or pids is not None:
+        if cpus is not None or memory is not None or swap is not None or pids is not None or time is not None:
             logging.error('Can\'t limit task without Kolejka Observer running.')
             sys.exit(1)
 
@@ -333,8 +364,9 @@ def config_parser(parser):
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
+    parser.add_argument('--time', action=TimeAction, help='time limit')
     def execute(args):
-        stage2(args.task, args.result, args.consume, cpus=args.cpus, cpus_offset=args.cpus_offset, memory=args.memory, swap=args.swap, pids=args.pids)
+        stage2(args.task, args.result, args.consume, cpus=args.cpus, cpus_offset=args.cpus_offset, memory=args.memory, swap=args.swap, pids=args.pids, time=args.time)
     parser.set_defaults(execute=execute)
 
 def main():

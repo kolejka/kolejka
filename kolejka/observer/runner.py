@@ -13,12 +13,13 @@ from kolejka.common import MemoryAction, TimeAction
 from kolejka.observer.client import KolejkaObserverClient
 
 class CompletedProcess(subprocess.CompletedProcess):
-    def __init__(self, completed_process, stats):
+    def __init__(self, completed_process, stats, limits):
         self.args = completed_process.args
         self.returncode = completed_process.returncode
         self.stdout = completed_process.stdout
         self.stderr = completed_process.stderr
         self.stats = stats
+        self.limits = limits
 
 def run(args, limits=None, **kwargs):
     if limits is None:
@@ -37,7 +38,7 @@ def run(args, limits=None, **kwargs):
         client.limits(limits)
         completed_process = subprocess.run(runner_args + args, **kwargs)
         stats = client.stats()
-        return CompletedProcess(completed_process, stats)
+        return CompletedProcess(completed_process, stats, limits)
     finally:
         client.close()
 
