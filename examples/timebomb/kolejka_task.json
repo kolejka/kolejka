@@ -1,0 +1,22 @@
+{
+  "id": "example_timebomb",
+  "image": "gcc:latest",
+  "files": {
+    "test.sh" : {
+        "path" : "test.sh"
+    },
+    "example.cpp" : {
+        "path" : "example.cpp"
+    }
+  },
+  "args": [
+    "./test.sh"
+  ],
+  "limits": {
+      "time" : "15s",
+      "memory" : "256M",
+      "swap" : 0
+  },
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}
