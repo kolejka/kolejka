@@ -311,6 +311,9 @@ class ObserverServer(socketserver.ThreadingMixIn, HTTPUnixServer):
         super().__exit__(*args, **kwargs)
 
 class ObserverHandler(http.server.BaseHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        self.mute_log_request = False
+        super().__init__(*args, **kwargs)
     @property
     def session_registry(self):
         return self.server.session_registry
@@ -333,10 +336,16 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(result)
 
+    def log_request(self, *args, **kwargs):
+        if not self.mute_log_request:
+            super().log_request(*args, **kwargs)
+
     def do_HEAD(self):
+        self.mute_log_request = True
         self.session_registry.cleanup_finished()
         self.send_response(200)
         self.end_headers()
+        self.mute_log_request = False
 
     def do_GET(self, params_override={}):
         self.session_registry.cleanup_finished()
