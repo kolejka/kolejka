@@ -1,7 +1,5 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-__import__('pkg_resources').declare_namespace('kolejka')
-
 def config_parser(parser):
     from kolejka.worker.stage0 import config_parser as stage0_parser
     from kolejka.worker.stage2 import config_parser as stage2_parser
