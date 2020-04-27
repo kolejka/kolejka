@@ -23,7 +23,7 @@ def create_groups(**kwargs):
                 return
         group.save()
 
-class MainConfig(AppConfig):
+class DefaultConfig(AppConfig):
     name='kolejka.server.default'
     def ready(self):
         post_migrate.connect(
