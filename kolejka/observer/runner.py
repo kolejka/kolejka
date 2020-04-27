@@ -13,8 +13,8 @@ from kolejka.common import MemoryAction, TimeAction
 from kolejka.observer.client import KolejkaObserverClient
 
 class CompletedProcess(subprocess.CompletedProcess):
-    def __init__(self, completed_process, stats, limits):
-        self.args = completed_process.args
+    def __init__(self, completed_process, args, stats, limits):
+        self.args = args
         self.returncode = completed_process.returncode
         self.stdout = completed_process.stdout
         self.stderr = completed_process.stderr
@@ -38,7 +38,7 @@ def run(args, limits=None, **kwargs):
         client.limits(limits)
         completed_process = subprocess.run(runner_args + args, **kwargs)
         stats = client.stats()
-        return CompletedProcess(completed_process, stats, limits)
+        return CompletedProcess(completed_process, args, stats, limits)
     finally:
         client.close()
 
@@ -67,6 +67,7 @@ def main():
     parser.add_argument('--stats-file', help='store statistics in a file')
     parser.add_argument('--user', help='change uid')
     parser.add_argument('--group', help='change gid')
+    parser.add_argument('--groups', help='change groups')
     parser.add_argument('--umask', help='change umask')
     parser.add_argument('--nice', help='change nice level')
 #    parser.add_argument('--proc-sched', help='change process scheduler')
@@ -106,19 +107,41 @@ def main():
     client.limits(limits)
     kwargs = dict()
     uid = None
+    user = None
     gid = None
+    group = None
+    groups = None
     if args.user:
         try:
-            uid = int(args.user)
+            pw = pwd.getpwuid(int(args.user))
         except:
             pw = pwd.getpwnam(args.user)
-            uid = pw.pw_uid
-            gid = pw.pw_gid
+        uid = pw.pw_uid
+        user = pw.pw_name
+        gid = pw.pw_gid
+        group = grp.getgrgid(gid).gr_name
+        groups = [ gid, ]
     if args.group:
         try:
-            gid = int(args.group)
+            gr = grp.getgrgid(int(args.group))
         except:
-            gid = grp.getgrnam(args.group).gr_gid
+            gr = grp.getgrnam(args.group)
+        gid = gr.gr_gid
+        group = gr.gr_name
+        groups = [ gid, ]
+    if user is not None and gid is not None:
+        groups = os.getgrouplist(user, gid)
+    if args.groups is not None:
+        groups = set()
+        if gid is not None:
+            groups.add(gid)
+        for g in args.groups.split(','):
+            try:
+                gr = grp.getgrgid(int(g))
+            except:
+                gr = grp.getgrnam(g)
+            groups.add(gr.gr_gid)
+        groups = list(groups)
 
     def preexec():
         if args.pid_file is not None and not args.background:
@@ -132,6 +155,8 @@ def main():
             os.nice(args.nice)
         if args.umask is not None:
             os.umask(args.umask)
+        if groups is not None:
+            os.setgroups(groups)
         if gid is not None:
             os.setgid(gid)
         if uid is not None:
