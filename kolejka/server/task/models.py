@@ -24,6 +24,10 @@ class Task(models.Model):
         task.load(self.description)
         return task
 
+    class Meta:
+        permissions = [('process_task', 'Can process task')]
+
+
 class Result(models.Model):
     task        = models.OneToOneField(Task, on_delete=models.CASCADE)
     user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='kolejka_results')

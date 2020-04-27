@@ -16,11 +16,11 @@ from kolejka.server.response import OKResponse, FAILResponse
 
 from . import models
 
-def task(request, key):
+def task(request, key=''):
     if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated():
+        if not request.user.has_perm('task.add_task'):
             return HttpResponseForbidden()
         t = KolejkaTask(None)
         t.load(request.read())
@@ -43,7 +43,7 @@ def task(request, key):
             except Reference.DoesNotExist:
                 return FAILResponse(message='Reference for file {} is unknown'.format(k))
             if not ref.public:
-                if not request.user.is_superuser and request.user != ref.user:
+                if not request.user.has_perm('blob.view_reference') and request.user != ref.user:
                     return FAILResponse(message='Reference for file {} is unknown'.format(k))
             refs.append(ref)
         limits = KolejkaLimits(
@@ -87,19 +87,21 @@ def task(request, key):
         response = dict()
         response['task'] = task.task().dump()
         return OKResponse(response)
-    if not request.user.is_authenticated():
+    if not request.user.is_authenticated:
         return HttpResponseForbidden()
     try:
         task = models.Task.objects.get(key=key)
     except models.Task.DoesNotExist:
         return HttpResponseNotFound()
-    if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
+    if not request.user.has_perm('task.view_task') and request.user != task.user and request.user != task.assignee:
         return HttpResponseForbidden()
     if request.method == 'PUT':
         response = dict()
         response['task'] = task.task().dump()
         return OKResponse(response)
     if request.method == 'DELETE':
+        if not request.user.has_perm('task.delete_task') and request.user != task.user:
+            return HttpResponseForbidden()
         task.delete()
         return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':
@@ -108,19 +110,19 @@ def task(request, key):
         return OKResponse(response)
     return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
 
-def result(request, key):
+def result(request, key=''):
     if request.method == 'POST':
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated():
+        if not request.user.has_perm('task.process_task'):
             return HttpResponseForbidden()
         r = KolejkaResult(None)
         r.load(request.read())
         try:
             task = models.Task.objects.get(key = r.id)
         except models.Task.DoesNotExist:
-            return FAILResponseForbidden()
-        if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
+            return HttpResponseForbidden()
+        if not request.user.has_perm('task.add_result') and request.user != task.assignee:
             return HttpResponseForbidden()
         for k,f in r.files.items():
             if not f.reference:
@@ -133,17 +135,19 @@ def result(request, key):
             except Reference.DoesNotExist:
                 return FAILResponse(message='Reference for file {} is unknown'.format(k))
             if not ref.public:
-                if not request.user.is_superuser and request.user != ref.user:
-                    return FAILResponse(message='Reference for file {} is unknown'.format(k))
+                if request.user != ref.user:
+                    return FAILResponse(message='Reference for file {} belongs to a different user'.format(k))
             refs.append(ref)
         result,created = models.Result.objects.get_or_create(task=task, user=request.user, description=json.dumps(r.dump()))
         result.save()
         for ref in refs:
+            ref.user = task.user
+            ref.save()
             result.files.add(ref)
         response = dict()
         response['result'] = result.result().dump()
         return OKResponse(response)
-    if not request.user.is_authenticated():
+    if not request.user.is_authenticated:
         return HttpResponseForbidden()
     try:
         task = models.Task.objects.get(key=key)
@@ -152,13 +156,15 @@ def result(request, key):
         return FAILResponse(message='Task {} is unknown'.format(key))
     except models.Result.DoesNotExist:
         return HttpResponseNotFound()
-    if not request.user.is_superuser and request.user != task.user and request.user != task.assignee:
+    if not request.user.has_perm('task.view_result') and request.user != task.user:
         return HttpResponseForbidden()
     if request.method == 'PUT':
         response = dict()
         response['result'] = result.result().dump()
         return OKResponse(response)
     if request.method == 'DELETE':
+        if not request.user.has_perm('task.delete_result') and request.user != task.user:
+            return HttpResponseForbidden()
         result.delete()
         return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':

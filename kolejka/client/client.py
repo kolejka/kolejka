@@ -40,10 +40,10 @@ class KolejkaClient:
             adapter = requests.adapters.HTTPAdapter(max_retries=max_retries)
             self.session.mount('http://', adapter)
             self.session.mount('https://', adapter)
-        for k,v in self.get('/settings/').json().items():
-            self.config.__setattr__(k, v)
         if self.config.username is not None and self.config.password is not None:
             self.login()
+        for k,v in self.get('/settings/').json().items():
+            self.config.__setattr__(k, v)
     @property
     def instance(self):
         url = self.config.server
@@ -116,7 +116,11 @@ class KolejkaClient:
         username = username or self.config.username
         password = password or self.config.password
         assert username and password
-        response = self.post('/accounts/login/', data={'username': username, 'password': password})
+        self.get('/logout/') #CLEARS USER AND ENSURES CSRF
+        response = self.post('/login/', data={'username': username, 'password': password})
+
+    def logout(self):
+        response = self.post('/logout/')
 
     def blob_put(self, blob_path):
         assert os.path.isfile(blob_path)

@@ -1,11 +1,14 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 from django.conf.urls import url
+from django.urls import path
 
 from . import views
 
 app_name = 'task'
 urlpatterns = [
-    url(r'^task/(?P<key>[0-9a-f]*)/?$', views.task),
-    url(r'^result/(?P<key>[0-9a-f]*)/?$', views.result),
+    path('task/', views.task),
+    path('task/<key>/', views.task),
+    path('result/', views.result),
+    path('result/<key>/', views.result),
 ]

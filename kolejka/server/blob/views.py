@@ -13,11 +13,11 @@ from kolejka.server.response import OKResponse, FAILResponse
 
 READ_BUF_SIZE = 8192
 
-def reference(request, key):
-    if request.method == 'POST':
+def reference(request, key=''):
+    if request.method == 'POST': #CREATE A NEW REFERENCE BY SENDING A BLOB
         if key != '':
             return HttpResponseForbidden()
-        if not request.user.is_authenticated():
+        if not request.user.has_perm('blob.add_reference'):
             return HttpResponseForbidden()
         hasher = hashlib.new(settings.BLOB_HASH_ALGORITHM)
         temp_file = models.Blob.blob_temp_path()
@@ -55,12 +55,10 @@ def reference(request, key):
         reference = models.Reference.objects.get(key=key)
     except models.Reference.DoesNotExist:
         return HttpResponseNotFound()
-    if not reference.public:
-        if not request.user.is_authenticated():
+    if not reference.public and request.user != reference.user:
+        if not request.user.has_perm('blob.view_reference'): 
             return HttpResponseForbidden()
-        if not request.user.is_superuser and request.user != reference.user:
-            return HttpResponseForbidden()
-    if request.method == 'PUT':
+    if request.method == 'PUT': #QUERY REFERENCE DATA
         response = dict()
         response['reference'] = {
             'key' : reference.key,
@@ -70,26 +68,25 @@ def reference(request, key):
             'time_access' : reference.time_access,
         }
         return OKResponse(response)
-    if request.method == 'DELETE':
-        if not request.user.is_authenticated():
-            return HttpResponseForbidden()
-        if not request.user.is_superuser and request.user != reference.user:
+    if request.method == 'DELETE': #DELETE REFERENCE
+        if not request.user.has_perm('blob.delete_reference') and request.user != reference.user:
             return HttpResponseForbidden()
         reference.delete()
         return OKResponse({'deleted' : True})
-    if request.method == 'GET' or request.method == 'HEAD':
+    if request.method == 'GET' or request.method == 'HEAD': #GET REFERENCED BLOB
         reference.blob.save()
         reference.save()
         return StreamingHttpResponse(reference.blob.open(), content_type='application/octet-stream')
+    return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
 
 def blob(request, key):
     try:
         blob = models.Blob.objects.get(key = key)
     except models.Blob.DoesNotExist:
         return HttpResponseNotFound()
-    if request.method == 'POST':
-        if not request.user.is_authenticated():
-            return HttpResponseForbidden()
+    if not request.user.has_perm('blob.view_blob'):
+        return HttpResponseForbidden()
+    if request.method == 'POST': #CREATE NEW REFERENCE TO THE BLOB
         reference = models.Reference(
                 user = request.user,
                 blob = blob
@@ -105,7 +102,7 @@ def blob(request, key):
             'time_access' : reference.time_access,
         }
         return OKResponse(response)
-    if request.method == 'POST':
+    if request.method == 'PUT': #QUERY BLOB DATA
         response = dict()
         response['blob'] = {
             'key' : blob.key,
@@ -115,14 +112,13 @@ def blob(request, key):
             'references' : blob.reference_set.count(),
         }
         return OKResponse(response)
-    if request.method == 'DELETE':
-        if not request.user.is_superuser:
+    if request.method == 'DELETE': #DELETE BLOB AND ALL REFERENCES
+        if not request.user.has_perm('blob.delete_blob'):
             return HttpResponseForbidden()
         blob.reference_set.all().delete()
         blob.delete()
         return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':
-        if not request.user.is_superuser:
-            return HttpResponseForbidden()
         blob.save()
         return StreamingHttpResponse(blob.open(), content_type='application/octet-stream')
+    return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
