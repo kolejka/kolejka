@@ -43,7 +43,7 @@ def login(request):
         if user is not None:
             auth_login(request, user)
             return OKResponse({})
-        return FailResponse({})
+        return FAILResponse({})
     if request.method == 'GET':
         return OKResponse({})
     return HttpResponseNotAllowed(['GET', 'POST'])
