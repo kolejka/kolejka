@@ -24,9 +24,9 @@ def create_groups(**kwargs):
         group.save()
 
 class MainConfig(AppConfig):
-    name='kolejka.server.main'
+    name='kolejka.server.default'
     def ready(self):
         post_migrate.connect(
             create_groups,
-            dispatch_uid='kolejka.server.main.apps.create_groups'
+            dispatch_uid='kolejka.server.default.apps.create_groups'
         )

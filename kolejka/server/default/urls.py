@@ -5,7 +5,7 @@ from django.urls import path
 
 from . import views
 
-app_name = 'main'
+app_name = 'default'
 urlpatterns = [
     path('login/',    views.login),
     path('logout/',   views.logout),
