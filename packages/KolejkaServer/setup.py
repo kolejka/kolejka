@@ -19,7 +19,7 @@ kolejka_server = {
         ],
         'entry_points' : {
             'console_scripts' : [
-                'kolejka-server = kolejka.server:main',
+                'kolejka-server = kolejka.server:main_entry',
             ],
         },
     }

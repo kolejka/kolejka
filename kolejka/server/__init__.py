@@ -1,6 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-def main():
+def main_entry():
     import os
     import sys
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "kolejka.server.settings")
@@ -8,4 +8,4 @@ def main():
     execute_from_command_line(sys.argv)
 
 if __name__ == '__main__':
-    main()
+    main_entry()
