@@ -295,19 +295,24 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
 
     orig_path = os.getcwd()
     os.chdir(task_path)
+    collects = list()
     for collect in task.get('collect', []):
         collect_glob = str(collect.get('glob'))
         collect_strip = int(collect.get('strip', 0))
         collect_prefix = str(collect.get('prefix', ''))
         for f in glob.iglob(collect_glob, recursive=True):
             if os.path.isfile(f):
+                collects.append(( os.path.islink(f), f, collect_strip, collect_prefix ))
+    for is_link, f, collect_strip, collect_prefix in sorted(collects, reverse=True):
                 split = f.strip('/').split('/')
                 split = split[min(collect_strip, len(split)-1):]
                 strip = '/'.join(split)
                 strip = os.path.join(collect_prefix.strip('/'), strip)
                 dest = os.path.join(result_path, strip)
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
-                if consume:
+                if is_link:
+                    shutil.copy(os.path.realpath(f), dest)
+                elif consume:
                     shutil.move(f, dest)
                 else:
                     shutil.copy(f, dest)
