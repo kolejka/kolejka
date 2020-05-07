@@ -46,22 +46,23 @@ class KolejkaObserverClient:
         return self.request('POST', path, headers, body)
 
     def open(self):
-        return self.post('open')
+        return self.post('/open')
     def attach(self, session=None):
         if session is not None:
             self.session = session
-        return self.post('attach')
+        return self.post('/attach')
     def detach(self, session=None):
         if session is not None:
             self.session = session
-        return self.post('detach')
+        return self.post('/detach')
     def limits(self, limits):
-        return self.post('limits', { 'limits' : limits.dump() })
+        return self.post('/limits', { 'limits' : limits.dump() })
     def stats(self):
         ret = KolejkaStats()
-        ret.load(self.post('stats'))
+        ret.load(self.post('/stats'))
         return ret
     def close(self):
-        self.post('close')
+        ret = self.post('/close')
         self.session = None
         self.secret = None
+        return ret
