@@ -8,39 +8,71 @@ import pwd
 import subprocess
 import sys
 
+from kolejka.common import settings
 from kolejka.common import KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction
+import kolejka.common.subprocess
 from kolejka.observer.client import KolejkaObserverClient
 
-class CompletedProcess(subprocess.CompletedProcess):
-    def __init__(self, completed_process, args, stats, limits):
-        self.args = args
-        self.returncode = completed_process.returncode
-        self.stdout = completed_process.stdout
-        self.stderr = completed_process.stderr
+class CompletedProcess(kolejka.common.subprocess.CompletedProcess):
+    def __init__(self, *args, stats, **kwargs):
+        super().__init__(*args, **kwargs)
         self.stats = stats
+    @property
+    def limits(self):
+        return self.starter.limits
+
+class Starter(kolejka.common.subprocess.Starter):
+    def __init__(self, *args, limits=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self.limits = limits
 
-def run(args, limits=None, **kwargs):
-    if limits is None:
-        limits = KolejkaLimits()
-    env = kwargs.get('env', dict())
-    client = KolejkaObserverClient()
-    session = client.open()
-    session_id = session['session_id']
-    secret = session['secret']
-    env['KOLEJKA_RUNNER_SESSION'] = session_id
-    env['KOLEJKA_RUNNER_SECRET'] = secret
-    kwargs['env'] = env
-    client = KolejkaObserverClient(session=session_id, secret=secret)
-    runner_args = [ 'kolejka-runner', ]
-    try:
-        client.limits(limits)
-        completed_process = subprocess.run(runner_args + args, **kwargs)
-        stats = client.stats()
-        return CompletedProcess(completed_process, args, stats, limits)
-    finally:
-        client.close()
+    def get_imports(self):
+        imports = super().get_imports()
+        imports.add('socket')
+        return imports
+
+    def get_commands(self):
+        commands = list()
+        session_id = self.session['session_id']
+        secret = self.session['secret']
+        data = bytes(json.dumps(self.session), 'utf8')
+        request = b'\r\n'.join([
+        b'POST /attach HTTP/1.1',
+        b'Host: kolejka-observer',
+        b'Content-Type: application/json; charset=utf-8',
+        b'Content-Length: '+bytes(str(len(data)),'utf8'),
+        b'',
+        data,
+        ])
+
+        commands.append('with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:')
+        commands.append('  sock.connect({})'.format(self.represent(settings.OBSERVER_SOCKET)))
+        commands.append('  sock.sendall({})'.format(self.represent(request)))
+        commands.append('  sock.recv(1024)')
+        commands += super().get_commands()
+        return commands
+
+    def __call__(self, *args, **kwargs):
+        self.client = KolejkaObserverClient()
+        self.session = self.client.open()
+        if self.limits:
+            self.client.limits(self.limits)
+        return super().__call__(*args, **kwargs)
+
+    def __del__(self):
+        try:
+            self.client.close()
+        except:
+            pass
+
+def run(*args, _Starter=Starter, **kwargs):
+    result = kolejka.common.subprocess.run(*args, _Starter=_Starter, **kwargs)
+    return CompletedProcess(starter=result.starter, returncode=result.returncode, stdout=result.stdout, stderr=result.stderr, stats=result.starter.client.stats())
+
+def start(*args, _Starter=Starter, **kwargs):
+    return kolejka.common.subprocess.start(*args, _Starter=_Starter, **kwargs)
+
 
 def main():
     import argparse
@@ -70,8 +102,6 @@ def main():
     parser.add_argument('--groups', help='change groups')
     parser.add_argument('--umask', help='change umask')
     parser.add_argument('--nice', help='change nice level')
-#    parser.add_argument('--proc-sched', help='change process scheduler')
-#    parser.add_argument('--io-sched', help='change IO scheduler')
 
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--cpus-offset', type=int, help='cpus limit')
@@ -98,13 +128,6 @@ def main():
     limits.time = args.time
 
     env = dict(os.environ)
-    session_id = env.pop('KOLEJKA_RUNNER_SESSION', None)
-    secret = env.pop('KOLEJKA_RUNNER_SECRET', None)
-    if not session_id:
-        secret = None
-    client = KolejkaObserverClient(session=session_id, secret=secret)
-    client.attach()
-    client.limits(limits)
     kwargs = dict()
     uid = None
     user = None
@@ -143,39 +166,39 @@ def main():
             groups.add(gr.gr_gid)
         groups = list(groups)
 
-    def preexec():
-        if args.pid_file is not None and not args.background:
-            with open(args.pid_file, 'w') as pid_file:
-                pid_file.writelines([str(os.getpid())])
-        if args.root is not None:
-            os.chroot(args.root)
-        if args.dir is not None:
-            os.chdir(args.dir)
-        if args.nice is not None:
-            os.nice(args.nice)
-        if args.umask is not None:
-            os.umask(args.umask)
-        if groups is not None:
-            os.setgroups(groups)
-        if gid is not None:
-            os.setgid(gid)
-        if uid is not None:
-            os.setuid(uid)
-
-
     if args.clear_env:
         env = dict()
     for varval in args.env:
         var, val = varval.split('=', 1)
         env[var] = val
-    kwargs['start_new_session'] = args.session
-    
-    kwargs['check'] = False
-    kwargs['env'] = env
-    kwargs['preexec_fn'] = preexec
 
     def execute():
-        return subprocess.run(args.args, **kwargs).returncode
+        stdin=None
+        stdout=None
+        stderr=None
+
+        result = run(args.args,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                check=False,
+                env=env,
+                start_new_session=args.session,
+                chroot=args.root,
+                cwd=args.dir,
+                nice=args.nice,
+                umask=args.umask,
+                user=uid,
+                group=gid,
+                groups=groups,
+                limits=limits
+            )
+        if args.stats_file:
+            with open(args.stats_file, 'w') as stats_file:
+                json.dump(result.stats.dump(), stats_file, sort_keys=2, indent=2)
+        result.starter.client.close()
+        return result.returncode
+    
     call = execute
     if args.background:
         def daemonized():
@@ -183,14 +206,7 @@ def main():
                 execute()
             return 0
         call = daemonized
-
     result = call()
-
-    if args.stats_file:
-        with open(args.stats_file, 'w') as stats_file:
-            json.dump(client.stats().dump(), stats_file, sort_keys=2, indent=2)
-    if not session_id:
-        client.close()
 
     sys.exit(result)
 
