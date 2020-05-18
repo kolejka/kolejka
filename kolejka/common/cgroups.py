@@ -103,18 +103,29 @@ class ControlGroupSystem:
         result = KolejkaStats()
         if 'cpuacct' in groups and 'cpuacct' in self.mount_points:
             user_hz = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
-            usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.usage')
-            with open(usage_file) as f:
-                total = 10**-9*float(f.readline().strip())
-            usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.stat')
-            with open(usage_file) as f:
-                stats = dict([line.strip().split() for line in f.readlines()])
+            total = 0
+            stats = { 'user' : 0, 'system' : 0 }
+            try:
+                usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.usage')
+                with open(usage_file) as f:
+                    total = 10**-9*float(f.readline().strip())
+            except:
+                pass
+            try:
+                usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.stat')
+                with open(usage_file) as f:
+                    stats = dict([line.strip().split() for line in f.readlines()])
+            except:
+                pass
             result.cpus['*'] = KolejkaStats.CpusStats(usage = total, user = float(stats['user'])/user_hz, system = float(stats['system'])/user_hz)
             usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.usage_percpu')
-            with open(usage_file) as f:
-                cpusplit = f.readline().strip().split()
-            for i,c in zip(range(len(cpusplit)), cpusplit):
-                result.cpus[str(i)] = KolejkaStats.CpusStats(usage = 10**-9*float(c))
+            try:
+                with open(usage_file) as f:
+                    cpusplit = f.readline().strip().split()
+                for i,c in zip(range(len(cpusplit)), cpusplit):
+                    result.cpus[str(i)] = KolejkaStats.CpusStats(usage = 10**-9*float(c))
+            except:
+                pass
         if 'memory' in groups and 'memory' in self.mount_points:
             try:
                 usage_file = os.path.join(self.mount_point('memory'), groups['memory'].strip('/'), 'memory.usage_in_bytes')
