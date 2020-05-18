@@ -7,6 +7,7 @@ import glob
 import json
 import logging
 import math
+from multiprocessing import Process
 import os
 import random
 import shutil
@@ -25,7 +26,7 @@ from kolejka.client import KolejkaClient
 from kolejka.worker.stage0 import stage0
 from kolejka.worker.volume import check_python_volume
 
-def manage_images(size, necessary_images, priority_images):
+def manage_images(pull, size, necessary_images, priority_images):
     necessary_size = sum(necessary_images.values(), 0)
     free_size = size - necessary_size
     assert free_size >= 0
@@ -53,12 +54,17 @@ def manage_images(size, necessary_images, priority_images):
         if image not in keep_images:
             subprocess.run(['docker', 'image', 'rm', image])
     for image,size in necessary_images.items():
-        subprocess.run(['docker', 'pull', image], check=True)
+        pull_image = pull
+        if not pull_image:
+            docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', image], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            pull_image = docker_inspect_run.returncode == 0
+        if pull_image:
+            subprocess.run(['docker', 'pull', image], check=True)
         docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', '--format', '{{json .Size}}', image], stdout=subprocess.PIPE, check=True)
         image_size = int(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
         assert image_size <= size
 
-def foreman_single(temp_path, client, task):
+def foreman_single(temp_path, task):
     config = foreman_config()
     with tempfile.TemporaryDirectory(temp_path) as jailed_path:
         if task.limits.workspace is not None:
@@ -71,6 +77,7 @@ def foreman_single(temp_path, client, task):
             os.makedirs(result_path, exist_ok=True)
             os.makedirs(temp_path, exist_ok=True)
             task.path = task_path
+            client = KolejkaClient()
             client.task_get(task.id, task_path)
             for k,f in task.files.items():
                 f.path = k
@@ -79,6 +86,8 @@ def foreman_single(temp_path, client, task):
             result = KolejkaResult(result_path)
             result.tags = config.tags
             client.result_put(result)
+        except:
+            traceback.print_exc()
         finally:
             if task.limits.storage is not None:
                 subprocess.run(['umount', '-l', jailed_path])
@@ -134,7 +143,7 @@ def foreman():
                         if resources.workspace is not None and task.limits.workspace > resources.workspace:
                             ok = False
                         if ok:
-                            proc = Thread(target=foreman_single, args=(config.temp_path, client, task))
+                            proc = Process(target=foreman_single, args=(config.temp_path, task))
                             processes.append(proc)
                             cpus_offset += task.limits.cpus
                             if resources.cpus is not None:
@@ -158,17 +167,20 @@ def foreman():
                         else:
                             break
                     if config.image is not None:
-                        manage_images(config.image, image_usage, [task.image for task in tasks])
+                        manage_images(config.pull, config.image, image_usage, [task.image for task in tasks])
                     for proc in processes:
                         proc.start()
                     for proc in processes:
                         proc.join()
+        except KeyboardInterrupt:
+            raise
         except:
             traceback.print_exc()
             time.sleep(config.interval)
 
 def config_parser(parser):
     parser.add_argument('--auto-tags', type=bool, help='add automatically generated machine tags', default=True)
+    parser.add_argument('--pull', action='store_true', help='always pull images, even if local version is present', default=False)
     parser.add_argument('--tags', type=str, help='comma separated list of machine tags')
     parser.add_argument('--temp', type=str, help='temp folder')
     parser.add_argument('--interval', type=float, help='dequeue interval (in seconds)')

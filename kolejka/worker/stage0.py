@@ -158,9 +158,13 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'task') ]
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'result') ]
         logging.debug('Docker call : {}'.format(docker_call))
-        
-        docker_pull_call = [ 'docker', 'pull', docker_image ]
-        subprocess.run(docker_pull_call, check=True)
+
+        pull_image = config.pull
+        if not pull_image:
+            docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', docker_image], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            pull_image = docker_inspect_run.returncode != 0
+        if pull_image:
+            subprocess.run(['docker', 'pull', docker_image], check=True)
 
         for docker_clean in docker_cleanup:
             silent_call(docker_clean)
@@ -235,7 +239,8 @@ def config_parser(parser):
     parser.add_argument("task", type=str, help='task folder')
     parser.add_argument("result", type=str, help='result folder')
     parser.add_argument("--temp", type=str, help='temp folder')
-    parser.add_argument("--consume", action="store_true", default=False, help='consume task folder') 
+    parser.add_argument('--pull', action='store_true', help='always pull images, even if local version is present', default=False)
+    parser.add_argument('--consume', action='store_true', default=False, help='consume task folder')
     parser.add_argument('--cpus', type=int, help='cpus limit')
     parser.add_argument('--memory', action=MemoryAction, help='memory limit')
     parser.add_argument('--swap', action=MemoryAction, help='swap limit')
