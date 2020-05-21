@@ -162,7 +162,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         pull_image = config.pull
         if not pull_image:
             docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', docker_image], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            pull_image = docker_inspect_run.returncode != 0
+            if docker_inspect_run.returncode != 0
+                pull_image = True 
         if pull_image:
             subprocess.run(['docker', 'pull', docker_image], check=True)
 
