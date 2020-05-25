@@ -57,7 +57,7 @@ def manage_images(pull, size, necessary_images, priority_images):
         pull_image = pull
         if not pull_image:
             docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', image], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-            if docker_inspect_run.returncode != 0
+            if docker_inspect_run.returncode != 0:
                 pull_image = True 
         if pull_image:
             subprocess.run(['docker', 'pull', image], check=True)
