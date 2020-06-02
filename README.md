@@ -92,6 +92,11 @@ The platform is divided into the following subsystems:
 * [Observer](https://github.com/kolejka/kolejka/wiki/Observer) - A standalone server that allows docker contained applications to do basic cgroups-based system usage accounting.
 * [Foreman](https://github.com/kolejka/kolejka/wiki/Foreman) - An operating system image that controls one node in the grid - uses all system resources to run Workers.
 
+Contributing
+------------
+
+TODO
+
 Acknowledgments
 ---------------
 
