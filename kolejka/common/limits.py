@@ -18,10 +18,10 @@ def max_none(*args):
     if len(args) > 0:
         return args[0]
 
-def sum_none(*args, start=0):
+def sum_none(*args):
     args = [ a for a in args if a is not None ]
     if len(args) > 1:
-        return sum(*args, start=start)
+        return sum(args[1:], start=args[0])
     if len(args) > 0:
         return args[0]
 
