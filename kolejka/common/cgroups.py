@@ -117,7 +117,7 @@ class ControlGroupSystem:
                     stats = dict([line.strip().split() for line in f.readlines()])
             except:
                 pass
-            result.cpus['*'] = KolejkaStats.CpusStats(usage = total, user = float(stats['user'])/user_hz, system = float(stats['system'])/user_hz)
+            result.cpu = KolejkaStats.CpusStats(usage = total, user = float(stats['user'])/user_hz, system = float(stats['system'])/user_hz)
             usage_file = os.path.join(self.mount_point('cpuacct'), groups['cpuacct'].strip('/'), 'cpuacct.usage_percpu')
             try:
                 with open(usage_file) as f:
@@ -168,6 +168,7 @@ class ControlGroupSystem:
                     result.pids.failures = int(stats['max'])
             except:
                 pass
+        result.update(KolejkaStats())
         return result
 
     def pid_stats(self, pid=None):

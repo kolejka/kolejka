@@ -18,6 +18,13 @@ def max_none(*args):
     if len(args) > 0:
         return args[0]
 
+def sum_none(*args, start=0):
+    args = [ a for a in args if a is not None ]
+    if len(args) > 1:
+        return sum(*args, start=start)
+    if len(args) > 0:
+        return args[0]
+
 class KolejkaLimits:
     def __init__(self, **kwargs):
         self.load(kwargs)
@@ -82,6 +89,7 @@ class KolejkaStats:
             self.usage = parse_time(args.get('usage', None))
             self.system = parse_time(args.get('system', None))
             self.user = parse_time(args.get('user', None))
+            self.usage = max_none(self.usage, sum_none(self.system, self.user))
         def dump(self):
             res = dict()
             if self.usage is not None:
@@ -95,6 +103,12 @@ class KolejkaStats:
             self.usage = max_none(self.usage, other.usage)
             self.system = max_none(self.system, other.system)
             self.user = max_none(self.user, other.user)
+            self.usage = max_none(self.usage, sum_none(self.system, self.user))
+        def add(self, other):
+            self.usage = sum_none(self.usage, other.usage)
+            self.system = sum_none(self.system, other.system)
+            self.user = sum_none(self.user, other.user)
+            self.usage = max_none(self.usage, sum_none(self.system, self.user))
 
     class MemoryStats:
         def __init__(self, **kwargs):
@@ -162,10 +176,16 @@ class KolejkaStats:
     def load(self, data, **kwargs):
         args = json_dict_load(data)
         args.update(kwargs)
+        self.cpu = KolejkaStats.CpusStats()
+        self.cpu.load(args.get('cpu', {}))
         self.cpus = dict()
         for key, val in args.get('cpus', {}).items():
             self.cpus[key] = KolejkaStats.CpusStats()
             self.cpus[key].load(val)
+        sumcpus = KolejkaStats.CpusStats()
+        for key,val in self.cpus.items():
+            sumcpus.add(val)
+        self.cpu.update(sumcpus)
         self.memory = KolejkaStats.MemoryStats()
         self.memory.load(args.get('memory', {}))
         self.pids = KolejkaStats.PidsStats()
@@ -174,6 +194,7 @@ class KolejkaStats:
 
     def dump(self):
         res = dict()
+        res['cpu'] = self.cpu.dump()
         res['cpus'] = dict( [ (k, v.dump()) for k,v in self.cpus.items() ] )
         res['memory'] = self.memory.dump()
         res['pids'] = self.pids.dump()
@@ -182,7 +203,15 @@ class KolejkaStats:
         return res
 
     def update(self, other):
-        self.cpus.update(other.cpus)
+        self.cpu.update(other.cpu)
+        for k,v in other.cpus.items():
+            if k not in self.cpus:
+                self.cpus[k] = KolejkaStats.CpusStats()
+            self.cpus[k].update(v)
+        sumcpus = KolejkaStats.CpusStats()
+        for key,val in self.cpus.items():
+            sumcpus.add(val)
+        self.cpu.update(sumcpus)
         self.memory.update(other.memory)
         self.pids.update(other.pids)
         self.time = max_none(self.time, other.time)
