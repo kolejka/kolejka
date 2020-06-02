@@ -130,12 +130,15 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_info_run = subprocess.run(['docker', 'system', 'info', '--format', '{{json .Driver}}'], stdout=subprocess.PIPE, check=True)
             storage_driver = str(json.loads(str(docker_info_run.stdout, 'utf-8')))
             if storage_driver == 'overlay2':
-                storage_limit = task.limits.storage
-                docker_call += [ '--storage-opt', 'size='+str(storage_limit) ]
-            else:
-                if task.limits.image is not None:
-                    storage_limit = task.limits.storage + task.limits.image
+                docker_info_run = subprocess.run(['docker', 'system', 'info', '--format', '{{json .DriverStatus}}'], stdout=subprocess.PIPE, check=True)
+                storage_fs = dict(json.loads(str(docker_info_run.stdout, 'utf-8')))['Backing Filesystem']
+                if storage_fs in [ 'xfs' ]:
+                    storage_limit = task.limits.storage
                     docker_call += [ '--storage-opt', 'size='+str(storage_limit) ]
+                else:
+                    logging.warning("Storage limit on {} ({}) is not supported".format(storage_driver, storage_fs))
+            else:
+                logging.warning("Storage limit on {} is not supported".format(storage_driver))
         if task.limits.network is not None:
             if not task.limits.network:
                 docker_call += [ '--network=none' ]
