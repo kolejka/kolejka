@@ -112,8 +112,17 @@ LIMIT_TIME = None
 LIMIT_IMAGE = None
 LIMIT_WORKSPACE = None
 
+IMAGE_NAME_MAPS = [
+#        ( r'kolejka([:/].*)', r'kolejka\1' ),
+]
+
 LIMIT_IMAGE_NAME = [
         r'.*',
+#        r'kolejka[:/].*',
+]
+
+LOCAL_IMAGE_NAMES = [
+#        r'kolejka[:/].*',
 ]
 
 IMAGE_REGISTRY = None

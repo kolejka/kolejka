@@ -24,6 +24,8 @@ def task(request, key=''):
             return HttpResponseForbidden()
         t = KolejkaTask(None)
         t.load(request.read())
+        for image_re, image_sub in settings.IMAGE_NAME_MAPS:
+            t.image = re.sub(r'^'+image_re+r'$', image_sub, t.image)
         accept_image = False
         for image_re in settings.LIMIT_IMAGE_NAME:
             if re.match(image_re, t.image):
@@ -31,6 +33,11 @@ def task(request, key=''):
                 break
         if not accept_image:
             return FAILResponse(message='Image {} is not accepted by the server'.format(t.image))
+        local_image = False
+        for image_re in settings.LOCAL_IMAGE_NAMES:
+            if re.match(image_re, t.image):
+                local_image = True
+                break
         t.id = uuid.uuid4().hex
         for k,f in t.files.items():
             if not f.reference:
@@ -58,7 +65,9 @@ def task(request, key=''):
                 workspace=settings.LIMIT_WORKSPACE,
             )
         t.limits.update(limits)
-        if settings.IMAGE_REGISTRY is not None and settings.IMAGE_REGISTRY_NAME is not None:
+
+
+        if settings.IMAGE_REGISTRY is not None and settings.IMAGE_REGISTRY_NAME is not None and not local_image:
             try:
                 subprocess.run(['docker', 'pull', t.image], check=True)
                 docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', '--format', '{{json .Id}}', t.image], stdout=subprocess.PIPE, check=True)
