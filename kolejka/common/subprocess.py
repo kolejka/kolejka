@@ -79,11 +79,11 @@ class Starter:
             commands.append('os.setgid({})'.format(self.represent(self.group)))
         if self.groups is not None:
             commands.append('os.setgroups({})'.format(self.represent(self.groups)))
-        if self.user is not None:
-            commands.append('os.setuid({})'.format(self.represent(self.user)))
         if self.resources:
             for key,val in self.resources.items():
                 commands.append('resource.setrlimit({},({},{}))'.format(self.represent(key), self.represent(val[0]), self.represent(val[1])))
+        if self.user is not None:
+            commands.append('os.setuid({})'.format(self.represent(self.user)))
 
         return commands
 
