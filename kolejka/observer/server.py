@@ -22,6 +22,8 @@ from kolejka.common import HTTPUnixServer, HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 from kolejka.common import ControlGroupSystem
 
+#TODO: detect subsessions?
+
 class Session:
     @property
     def system(self):
@@ -241,6 +243,7 @@ class Session:
 class SessionRegistry:
     def __init__(self):
         self.sessions = dict()
+        self.session_stats = dict()
         self.control_group_system = ControlGroupSystem()
         self.salt = uuid.uuid4().hex 
 
@@ -255,6 +258,12 @@ class SessionRegistry:
                 self.close(session_id)
             if session.finished():
                 self.close(session_id)
+        for session_id, stats in list(self.session_stats.items()):
+            if session_id in self.sessions:
+                continue
+            stats_time = stats[1]
+            if stats_time + 300 < current_time:
+                del self.session_stats[session_id]
 
     def open(self, session_id, pid):
         if session_id not in self.sessions:
@@ -275,9 +284,11 @@ class SessionRegistry:
 
     def stats(self, session_id):
         if session_id in self.sessions:
-            return self.sessions[session_id].stats()
-        else:
-            return KolejkaStats()
+            current_time = time.perf_counter()
+            stats = self.session_stats.get(session_id, (KolejkaStats(), 0))[0]
+            stats.update(self.sessions[session_id].stats())
+            self.session_stats[session_id] = (stats, current_time)
+        return self.session_stats.get(session_id, (KolejkaStats(), 0))[0]
 
     def freeze(self, session_id):
         assert session_id in self.sessions
@@ -296,6 +307,10 @@ class SessionRegistry:
         if session_id not in self.sessions:
             return
         try:
+            try:
+                self.stats(session_id)
+            except:
+                pass
             self.sessions[session_id].close()
             del self.sessions[session_id]
         except:
