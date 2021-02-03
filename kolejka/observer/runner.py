@@ -66,13 +66,16 @@ class Starter(kolejka.common.subprocess.Starter):
         except:
             pass
 
-def run(*args, _Starter=Starter, **kwargs):
-    result = kolejka.common.subprocess.run(*args, _Starter=_Starter, **kwargs)
-    return CompletedProcess(starter=result.starter, returncode=result.returncode, stdout=result.stdout, stderr=result.stderr, stats=result.starter.client.stats())
-
 def start(*args, _Starter=Starter, **kwargs):
     return kolejka.common.subprocess.start(*args, _Starter=_Starter, **kwargs)
 
+def wait(process, input=None, timeout=None, check=False):
+    result = kolejka.common.subprocess.wait(process, input=input, timeout=timeout, check=check)
+    return CompletedProcess(starter=result.starter, returncode=result.returncode, stdout=result.stdout, stderr=result.stderr, stats=result.starter.client.stats())
+
+def run(*args, _Starter=Starter, **kwargs):
+    result = kolejka.common.subprocess.run(*args, _Starter=_Starter, **kwargs)
+    return CompletedProcess(starter=result.starter, returncode=result.returncode, stdout=result.stdout, stderr=result.stderr, stats=result.starter.client.stats())
 
 def main():
     import argparse

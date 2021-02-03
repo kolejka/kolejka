@@ -7,6 +7,42 @@ import re
 import signal
 import subprocess
 
+class Process:
+    def __init__(self, starter, process):
+        self.starter = starter
+        self.process = process
+    @property
+    def args(self):
+        return self.starter.args
+    @property
+    def stdin(self):
+        return self.process.stdin
+    @property
+    def stdout(self):
+        return self.process.stdout
+    @property
+    def stderr(self):
+        return self.process.stderr
+    @property
+    def pid(self):
+        return self.process.pid
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, value, traceback):
+        self.process.__exit__(exc_type, value, traceback)
+    def communicate(self, *args, **kwargs):
+        return self.process.communicate(*args, **kwargs)
+    def poll(self, *args, **kwargs):
+        return self.process.poll(*args, **kwargs)
+    def wait(self, *args, **kwargs):
+        return self.process.wait(*args, **kwargs)
+    def send_signal(self, *args, **kwargs):
+        return self.process.send_signal(*args, **kwargs)
+    def terminate(self, *args, **kwargs):
+        return self.process.terminate(*args, **kwargs)
+    def kill(self, *args, **kwargs):
+        return self.process.kill(*args, **kwargs)
+
 class CompletedProcess:
     def __init__(self, starter, returncode, stdout=None, stderr=None):
         self.starter = starter
@@ -104,10 +140,29 @@ class Starter:
 
     def __call__(self):
         self.script_env['__KOLEJKA_STARTER_SCRIPT__'] = self.script
-        return subprocess.Popen(args=["python3", "-c", "import os; exec(os.environ.get('__KOLEJKA_STARTER_SCRIPT__'));"], executable="python3", stdin=self.stdin, stdout=self.stdout, stderr=self.stderr, env=self.script_env, **self.kwargs)
+        return Process(
+            starter=self,
+            process=subprocess.Popen(args=["python3", "-c", "import os; exec(os.environ.get('__KOLEJKA_STARTER_SCRIPT__'));"], executable="python3", stdin=self.stdin, stdout=self.stdout, stderr=self.stderr, env=self.script_env, **self.kwargs)
+        )
 
 def start(*args, _Starter=Starter, **kwargs):
     return _Starter(*args, **kwargs)()
+
+def wait(process, input=None, timeout=None, check=False):
+    try:
+        stdout, stderr = process.communicate(input, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        stdout, stderr = process.communicate()
+        raise subprocess.TimeoutExpired(starter.args, timeout, output=stdout, stderr=stderr)
+    except:
+        process.kill()
+        process.wait()
+        raise
+    retcode = process.poll()
+    if check and retcode:
+        raise subprocess.CalledProcessError(retcode, starter.args, output=stdout, stderr=stderr)
+    return CompletedProcess(process.starter, retcode, stdout, stderr)
 
 def run(*args, _Starter=Starter, input=None, timeout=None, check=False, **kwargs):
     if input is not None:
@@ -115,20 +170,5 @@ def run(*args, _Starter=Starter, input=None, timeout=None, check=False, **kwargs
             raise ValueError('stdin and input arguments may not both be used.')
         kwargs['stdin'] = subprocess.PIPE
 
-    starter = _Starter(*args, **kwargs)
-
-    with starter() as process:
-        try:
-            stdout, stderr = process.communicate(input, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            stdout, stderr = process.communicate()
-            raise subprocess.TimeoutExpired(starter.args, timeout, output=stdout, stderr=stderr)
-        except:
-            process.kill()
-            process.wait()
-            raise
-        retcode = process.poll()
-        if check and retcode:
-            raise subprocess.CalledProcessError(retcode, starter.args, output=stdout, stderr=stderr)
-    return CompletedProcess(starter, retcode, stdout, stderr)
+    with start(*args, _Starter=_Starter, **kwargs) as process:
+        return wait(process, input=input, timeout=timeout, check=check)
