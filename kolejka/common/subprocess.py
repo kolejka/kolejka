@@ -1,16 +1,19 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
 import base64
+import datetime
 import json
 import os
 import re
 import signal
 import subprocess
+import time
 
 class Process:
-    def __init__(self, starter, process):
+    def __init__(self, starter, process, start_time):
         self.starter = starter
         self.process = process
+        self.start_time = start_time
     @property
     def args(self):
         return self.starter.args
@@ -44,11 +47,14 @@ class Process:
         return self.process.kill(*args, **kwargs)
 
 class CompletedProcess:
-    def __init__(self, starter, returncode, stdout=None, stderr=None):
+    def __init__(self, starter, returncode, stdout=None, stderr=None, time=None, start_time=None, stop_time=None):
         self.starter = starter
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
+        self.time = time
+        if self.time is None and start_time is not None and stop_time is not None and stop_time >= start_time:
+            self.time = datetime.timedelta(seconds=stop_time - start_time)
     @property
     def args(self):
         return self.starter.args
@@ -142,13 +148,15 @@ class Starter:
         self.script_env['__KOLEJKA_STARTER_SCRIPT__'] = self.script
         return Process(
             starter=self,
-            process=subprocess.Popen(args=["python3", "-c", "import os; exec(os.environ.get('__KOLEJKA_STARTER_SCRIPT__'));"], executable="python3", stdin=self.stdin, stdout=self.stdout, stderr=self.stderr, env=self.script_env, **self.kwargs)
+            process=subprocess.Popen(args=["python3", "-c", "import os; exec(os.environ.get('__KOLEJKA_STARTER_SCRIPT__'));"], executable="python3", stdin=self.stdin, stdout=self.stdout, stderr=self.stderr, env=self.script_env, **self.kwargs),
+            start_time=time.perf_counter(),
         )
 
 def start(*args, _Starter=Starter, **kwargs):
     return _Starter(*args, **kwargs)()
 
 def wait(process, input=None, timeout=None, check=False):
+    stop_time = None
     try:
         stdout, stderr = process.communicate(input, timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -160,9 +168,10 @@ def wait(process, input=None, timeout=None, check=False):
         process.wait()
         raise
     retcode = process.poll()
+    stop_time = time.perf_counter()
     if check and retcode:
         raise subprocess.CalledProcessError(retcode, starter.args, output=stdout, stderr=stderr)
-    return CompletedProcess(process.starter, retcode, stdout, stderr)
+    return CompletedProcess(process.starter, retcode, stdout, stderr, start_time=process.start_time, stop_time=stop_time)
 
 def run(*args, _Starter=Starter, input=None, timeout=None, check=False, **kwargs):
     if input is not None:

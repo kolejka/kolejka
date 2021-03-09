@@ -2,4 +2,4 @@
 
 from .client import KolejkaObserverClient
 from .server import KolejkaObserverServer
-from .runner import run
+from .runner import run, start, wait
