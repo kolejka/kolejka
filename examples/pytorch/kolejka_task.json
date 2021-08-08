@@ -1,0 +1,18 @@
+{
+  "id": "example_pytorch",
+  "image":  "nvcr.io/nvidia/pytorch:19.12-py3",
+  "files": {
+    "test.py" : {
+        "path" : "test.py"
+    }
+  },
+  "args": [
+      "/opt/conda/bin/python3",
+      "test.py"
+  ],
+  "limits": {
+    "gpus": 2
+  },
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}

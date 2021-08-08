@@ -15,6 +15,7 @@ kolejka_common = {
         'install_requires' : [
             'appdirs',
             'setproctitle',
+            'gpustat==0.6.0',
         ],
         'entry_points' : {
             'console_scripts' : [

@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import gpustat
 
 def parse_cpu_name(name):
     name = re.sub(r'@.*', '', name.lower())
@@ -61,7 +62,25 @@ def cpu_tags():
         tags.add('cpus:'+str(count))
     return tags
 
+def gpu_tags():
+    tags = set()
+
+    gpu_stats = gpustat.GPUStatCollection.new_query()
+
+    tags.add(f'gpus:{len(gpu_stats.gpus)}')
+
+    for gpu in gpu_stats.gpus:
+        parts = gpu.name.lower().split(' ')
+        major = parts[0]
+        minor = '-'.join(parts[1:])
+
+        tags.add(f'gpu:{major}')
+        tags.add(f'gpu:{minor}')
+
+    return tags
+
 def foreman_auto_tags():
     tags = set()
     tags.update(cpu_tags())
+    tags.update(gpu_tags())
     return list(tags)
