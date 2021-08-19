@@ -1,0 +1,27 @@
+{
+  "id": "gpus",
+  "image":  "nvcr.io/nvidia/pytorch:21.07-py3",
+  "requires": ["gpus:1"],
+  "files": {
+    "sample.py" : {
+        "path" : "sample.py"
+    }
+  },
+  "args": [
+      "/opt/conda/bin/python",
+      "sample.py"
+  ],
+  "limits": {
+    "gpus": 1,
+    "gpu_memory": "2G",
+    "cpus": 2,
+    "pids": 64,
+    "memory": "4G",
+    "storage": "1G",
+    "image": "15G",
+    "workspace": "1G",
+    "time": 100
+  },
+  "stderr": "stderr.txt",
+  "stdout": "stdout.txt"
+}

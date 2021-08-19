@@ -131,15 +131,16 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
 
         if task.limits.gpus is not None and task.limits.gpus > 0:
+            print("At least GPUs")
             check_gpu_runtime_availability()
             gpus = limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
             gpus_str = ','.join(map(str, gpus))
-            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'\'"device={gpus_str}"\'' ]
+            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'"device={gpus_str}"' ]
 
             if task.limits.gpu_memory is not None and task.limits.gpu_memory > 0:
                 gpu_memory_reservation = [
                     'docker', 'run', '--runtime=nvidia', '--rm', '-d', '-e',
-                    '--gpus', f'\'"device={gpus_str}"\'',
+                    '--gpus', f'"device={gpus_str}"',
                     '--name', f'gpu_mem_preserve_{task.id}',
                     'gpu-memory-reservation:latest',
                     f'{task.limits.gpu_memory // 1024 // 1024}'
@@ -220,6 +221,18 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         cid = str(docker_run.stdout, 'utf-8').strip()
         logging.info('Started container {}'.format(cid))
 
+        try:
+            logging.info(f'INFO ABOUT GPUS: {task.limits.gpus}, {limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)}')
+            if task.limits.gpus is not None and task.limits.gpus > 0:
+                result.stats.update(
+                    gpu_stats(
+                        gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                    )
+                )
+        except:
+            pass
+        time.sleep(0.1)
+
         while True:
             try:
                 docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
@@ -228,7 +241,15 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 break
             try:
                 result.stats.update(cgs.name_stats(cid))
-                result.stats.update(gpu_stats())
+
+                logging.info(
+                    f'INFO ABOUT GPUS: {task.limits.gpus}, {limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)}')
+                if task.limits.gpus is not None and task.limits.gpus > 0:
+                    result.stats.update(
+                        gpu_stats(
+                            gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                        )
+                    )
             except:
                 pass
             time.sleep(0.1)

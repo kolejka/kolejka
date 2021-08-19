@@ -5,7 +5,7 @@ from kolejka.common.limits import KolejkaStats
 def normalize_name(name: str) -> str:
     return '-'.join(name.lower().split(' ')[1:])
 
-def gpu_stats():
+def gpu_stats(gpus: list = None):
     query = gpustat.GPUStatCollection.new_query()
 
     stats = KolejkaStats()
@@ -19,6 +19,7 @@ def gpu_stats():
                 'max_temperature': gpu.temperature,
                 'max_utilization': gpu.utilization
             } for index, gpu in enumerate(query.gpus)
+            if gpus is None or str(index) in gpus
         }
     })
 
@@ -33,5 +34,5 @@ def limited_gpuset(full, gpus, gpus_offset):
         gpus_offset = 0
 
     return [
-        str((gpus_offset + _index) % gpus) for _index in range(len(full))
+        str((gpus_offset + _index) % len(full)) for _index in range(gpus)
     ]

@@ -7,12 +7,13 @@
       "/usr/bin/nvidia-smi"
   ],
   "limits": {
-    "gpus": 1,
+    "gpus": 3,
+    "gpu_memory": "1G",
     "cpus": 1,
     "pids": 64,
     "memory": "64M",
     "storage": "64M",
-    "image": "1G",
+    "image": "10G",
     "workspace": "64M",
     "time": 10
   },

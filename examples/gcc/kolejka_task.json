@@ -12,6 +12,17 @@
   "args": [
     "./test.sh"
   ],
+  "limits": {
+    "gpus": 0,
+    "gpu_memory": 0,
+    "cpus": 1,
+    "pids": 64,
+    "memory": "64M",
+    "storage": "64M",
+    "image": "2G",
+    "workspace": "64M",
+    "time": 10
+  },
   "stderr": "console.txt",
   "stdout": "console.txt"
 }
