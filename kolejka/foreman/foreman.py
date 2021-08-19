@@ -62,16 +62,13 @@ def manage_images(pull, size, necessary_images, priority_images, base_images):
         if image not in keep_images:
             remove_docker_image(image)
     for image, size in necessary_images.items():
-        print(image, size)
         pull_image = pull
-        print(pull_image)
         if not pull_image:
             if not check_docker_image_existance(image):
                 pull_image = True 
         if pull_image:
             pull_docker_image(image)
         image_size = get_docker_image_size(image)
-        print(image_size, size)
         assert image_size <= size
 
 def foreman_single(temp_path, task):

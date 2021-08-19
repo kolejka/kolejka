@@ -131,7 +131,6 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
 
         if task.limits.gpus is not None and task.limits.gpus > 0:
-            print("At least GPUs")
             check_gpu_runtime_availability()
             gpus = limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
             gpus_str = ','.join(map(str, gpus))

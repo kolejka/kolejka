@@ -38,49 +38,35 @@ def dequeue(request):
             break
         tt = t.task()
         if len(tasks) > 0 and tt.exclusive:
-            print('At exclusive')
             continue
         if not set(tt.requires).issubset(tags):
-            print('At tags')
             continue
         if resources.cpus is not None and (tt.limits.cpus is None or tt.limits.cpus > resources.cpus):
-            print('At CPUs')
             continue
         if tt.limits.gpus is not None and tt.limits.gpus > 0:
             if resources.gpus is not None and (tt.limits.gpus is None or tt.limits.gpus > resources.gpus):
-                print('At GPUs')
                 continue
         if resources.memory is not None and (tt.limits.memory is None or tt.limits.memory > resources.memory):
-            print('At Memory')
             continue
         if resources.gpu_memory is not None and (tt.limits.gpu_memory is None or tt.limits.gpu_memory > resources.gpu_memory):
-            print('At GPU memory')
             continue
         if resources.swap is not None and (tt.limits.swap is None or tt.limits.swap > resources.swap):
-            print('At swap')
             continue
         if resources.pids is not None and (tt.limits.pids is None or tt.limits.pids > resources.pids):
-            print('At pids')
             continue
         if resources.storage is not None and (tt.limits.storage is None or tt.limits.storage > resources.storage):
-            print('At Storage')
             continue
         if resources.image is not None:
             if tt.limits.image is None:
-                print('At image A')
                 continue
             image_usage_add = max(image_usage.get(tt.image, 0), tt.limits.image) - image_usage.get(tt.image, 0)
             if image_usage_add > resources.image:
-                print('At image B')
                 continue
         if resources.workspace is not None and (tt.limits.workspace is None or tt.limits.workspace > resources.workspace):
-            print('At workspace')
             continue
         if resources.network is not None and (tt.limits.network is None or tt.limits.network and not resources.network):
-            print('At network')
             continue
         if resources.time is not None and (tt.limits.time is None or tt.limits.time > resources.time):
-            print('At time')
             continue
 
         tasks.append(tt.dump())
