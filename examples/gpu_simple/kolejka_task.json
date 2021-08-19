@@ -1,0 +1,21 @@
+{
+  "id": "gpus",
+  "image":  "nvidia/cuda:11.0-base",
+  "requires": ["gpus:1"],
+  "files": {},
+  "args": [
+      "/usr/bin/nvidia-smi"
+  ],
+  "limits": {
+    "gpus": 1,
+    "cpus": 1,
+    "pids": 64,
+    "memory": "64M",
+    "storage": "64M",
+    "image": "1G",
+    "workspace": "64M",
+    "time": 10
+  },
+  "stderr": "console.txt",
+  "stdout": "console.txt"
+}
