@@ -242,8 +242,6 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             try:
                 result.stats.update(cgs.name_stats(cid))
 
-                logging.info(
-                    f'INFO ABOUT GPUS: {task.limits.gpus}, {limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)}')
                 if task.limits.gpus is not None and task.limits.gpus > 0:
                     result.stats.update(
                         gpu_stats(
