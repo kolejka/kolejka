@@ -63,8 +63,6 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
     docker_task = 'kolejka_worker_{}'.format(task.id)
 
-    before_run = []
-
     docker_cleanup  = [
         [ 'docker', 'kill', docker_task ],
         [ 'docker', 'rm', docker_task ],
@@ -132,25 +130,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
         if task.limits.gpus is not None and task.limits.gpus > 0:
             check_gpu_runtime_availability()
-            gpus = limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
-            gpus_str = ','.join(map(str, gpus))
-            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'\'"device={gpus_str}"\'' ]
-
-            if task.limits.gpu_memory is not None and task.limits.gpu_memory > 0:
-                gpu_memory_reservation = [
-                    'docker', 'run', '--runtime=nvidia', '--rm', '-d', '-e',
-                    '--gpus', f'\'"device={gpus_str}"\'',
-                    '--name', f'gpu_mem_preserve_{task.id}',
-                    'gpu-memory-reservation:latest',
-                    f'{task.limits.gpu_memory // 1024 // 1024}'
-                ]
-                logging.debug('Docker call : {}'.format(gpu_memory_reservation))
-                before_run += [
-                    gpu_memory_reservation
-                ]
-                docker_cleanup += [
-                    ['docker', 'stop', f'gpu_mem_preserve_{task.id}'],
-                ]
+            gpus = ','.join(map(str, limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)))
+            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'\'"device={gpus}"\'' ]
 
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
@@ -211,9 +192,6 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         result.limits = task.limits
         result.stdout = task.stdout
         result.stderr = task.stderr
-
-        for sub_call in before_run:
-            silent_call(sub_call)
 
         start_time = datetime.datetime.now()
         docker_run = subprocess.run(docker_call, stdout=subprocess.PIPE)
@@ -289,7 +267,6 @@ def config_parser(parser):
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
-    parser.add_argument('--gpu-memory', type=MemoryAction, help='gpu memory limit')
     def execute(args):
         kolejka_config(args=args)
         config = worker_config()

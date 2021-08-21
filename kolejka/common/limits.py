@@ -48,7 +48,6 @@ class KolejkaLimits:
         self.time = parse_time(args.get('time', None))
         self.gpus = parse_int(args.get('gpus', 0))
         self.gpus_offset = parse_int(args.get('gpus_offset', None))
-        self.gpu_memory = parse_memory(args.get('gpu_memory', None))
 
     def dump(self):
         res = dict()
@@ -76,8 +75,6 @@ class KolejkaLimits:
             res['gpus'] = self.gpus
         if self.gpus_offset is not None:
             res['gpus_offset'] = self.gpus_offset
-        if self.gpu_memory is not None:
-            res['gpu_memory'] = unparse_memory(self.gpu_memory)
         return res
 
     def update(self, other):
@@ -93,7 +90,6 @@ class KolejkaLimits:
         self.time = min_none(self.time, other.time)
         self.gpus = min_none(self.gpus, other.gpus)
         self.gpus_offset = min_none(self.gpus_offset, other.gpus_offset)
-        self.gpu_memory = min_none(self.gpu_memory, other.gpu_memory)
 
 class KolejkaStats:
     class CpusStats:

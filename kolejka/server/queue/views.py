@@ -48,8 +48,6 @@ def dequeue(request):
                 continue
         if resources.memory is not None and (tt.limits.memory is None or tt.limits.memory > resources.memory):
             continue
-        if resources.gpu_memory is not None and (tt.limits.gpu_memory is None or tt.limits.gpu_memory > resources.gpu_memory):
-            continue
         if resources.swap is not None and (tt.limits.swap is None or tt.limits.swap > resources.swap):
             continue
         if resources.pids is not None and (tt.limits.pids is None or tt.limits.pids > resources.pids):

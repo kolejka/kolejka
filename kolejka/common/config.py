@@ -68,7 +68,6 @@ class KolejkaConfig:
         self.client.__setattr__('time', parse_time(client_config.get('time', default_config.get('time', None))))
         self.client.__setattr__('network', parse_bool(client_config.get('network', default_config.get('network', None))))
         self.client.__setattr__('gpus', parse_int(client_config.get('gpus', default_config.get('gpus', None))))
-        self.client.__setattr__('gpu_memory', parse_memory(client_config.get('gpu_memory', default_config.get('gpu_memory', None))))
 
         self.foreman.__setattr__('temp_path', foreman_config.get('temp', default_config.get('temp', None)))
         self.foreman.__setattr__('interval', parse_float(foreman_config.get('interval', default_config.get('interval', None) or FOREMAN_INTERVAL)))
@@ -91,7 +90,6 @@ class KolejkaConfig:
             tags = list(tags)
         self.foreman.__setattr__('tags', tags)
         self.foreman.__setattr__('gpus', parse_int(foreman_config.get('gpus', default_config.get('gpus', None))))
-        self.foreman.__setattr__('gpu_memory', parse_memory(foreman_config.get('gpu_memory', default_config.get('gpu_memory', None))))
 
         self.worker.__setattr__('debug', parse_bool(worker_config.get('debug', default_config.get('debug', None) or False)))
         self.worker.__setattr__('verbose', parse_bool(worker_config.get('verbose', default_config.get('verbose', None) or False)))
@@ -107,7 +105,6 @@ class KolejkaConfig:
         self.worker.__setattr__('time', parse_time(worker_config.get('time', default_config.get('time', None))))
         self.worker.__setattr__('network', parse_bool(worker_config.get('network', default_config.get('network', None))))
         self.worker.__setattr__('gpus', parse_int(worker_config.get('gpus', default_config.get('gpus', None))))
-        self.worker.__setattr__('gpu_memory', parse_memory(worker_config.get('gpu_memory', default_config.get('gpu_memory', None))))
 
 _config = None
 def _configure(config_file=None, config=None, args=None, **kwargs):
