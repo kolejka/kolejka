@@ -131,7 +131,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         if task.limits.gpus is not None and task.limits.gpus > 0:
             check_gpu_runtime_availability()
             gpus = ','.join(map(str, limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)))
-            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'\'"device={gpus}"\'' ]
+            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'"device={gpus}"' ]
 
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
