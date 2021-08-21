@@ -38,6 +38,7 @@ def dequeue(request):
             break
         tt = t.task()
         if len(tasks) > 0 and tt.exclusive:
+            print('At exclusive')
             continue
         if not set(tt.requires).issubset(tags):
             continue

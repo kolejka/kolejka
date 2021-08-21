@@ -46,7 +46,7 @@ class KolejkaLimits:
         self.image = parse_memory(args.get('image', None))
         self.workspace = parse_memory(args.get('workspace', None))
         self.time = parse_time(args.get('time', None))
-        self.gpus = parse_int(args.get('gpus', 0))
+        self.gpus = parse_int(args.get('gpus', None))
         self.gpus_offset = parse_int(args.get('gpus_offset', None))
 
     def dump(self):

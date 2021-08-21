@@ -198,6 +198,17 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         cid = str(docker_run.stdout, 'utf-8').strip()
         logging.info('Started container {}'.format(cid))
 
+        try:
+            if task.limits.gpus is not None and task.limits.gpus > 0:
+                result.stats.update(
+                    gpu_stats(
+                        gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                    )
+                )
+        except:
+            pass
+        time.sleep(0.1)
+
         while True:
             try:
                 docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
@@ -206,7 +217,13 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 break
             try:
                 result.stats.update(cgs.name_stats(cid))
-                result.stats.update(gpu_stats())
+
+                if task.limits.gpus is not None and task.limits.gpus > 0:
+                    result.stats.update(
+                        gpu_stats(
+                            gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                        )
+                    )
             except:
                 pass
             time.sleep(0.1)

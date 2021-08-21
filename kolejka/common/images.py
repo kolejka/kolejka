@@ -11,18 +11,18 @@ def check_docker_image_existance(image: str) -> bool:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT
     )
-    return docker_inspect_run.returncode != 0
+    return docker_inspect_run.returncode == 0
 
 def pull_docker_image(image: str):
     subprocess.run(['docker', 'pull', image], check=True)
 
 def get_docker_image_size(image: str) -> int:
     docker_inspect_run = subprocess.run(
-        ['docker', 'image', 'inspect', '--format', '{{json .Size}}', image],
+        ['docker', 'image', 'inspect', '--format', '"{{json .Size}}"', image],
         stdout=subprocess.PIPE,
         check=True
     )
-    return int(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
+    return parse_memory(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
 
 def remove_docker_image(image: str):
     subprocess.run(['docker', 'image', 'rm', image])
@@ -38,6 +38,6 @@ def list_docker_images():
     )
 
     return dict([
-        (a.split()[0], parse_memory(a.split()[1]))
+        (a.split()[0].strip('"'), parse_memory(a.split()[1].strip('"')))
         for a in ls_output.split('\n') if a
     ])

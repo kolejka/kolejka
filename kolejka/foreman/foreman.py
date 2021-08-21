@@ -60,7 +60,7 @@ def manage_images(pull, size, necessary_images, priority_images):
     for image in docker_images:
         if image not in keep_images:
             remove_docker_image(image)
-    for image,size in necessary_images.items():
+    for image, size in necessary_images.items():
         pull_image = pull
         if not pull_image:
             if not check_docker_image_existance(image):
