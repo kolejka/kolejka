@@ -193,6 +193,7 @@ class KolejkaClient:
         limits.workspace = self.config.workspace
         limits.time = self.config.time
         limits.network = self.config.network
+        limits.gpus = self.config.gpus
         task.limits.update(limits)
         if not self.instance_session:
             self.login() 
@@ -318,7 +319,8 @@ def config_parser_task_put(parser):
     parser.add_argument('--image', action=MemoryAction, help='image size limit')
     parser.add_argument('--workspace', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
-    parser.add_argument('--network',type=bool, help='allow netowrking')
+    parser.add_argument('--network', type=bool, help='allow netowrking')
+    parser.add_argument('--gpus', type=int, help='gpus limit')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
@@ -404,6 +406,7 @@ def config_parser_execute(parser):
     parser.add_argument('--workspace', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network',type=bool, help='allow netowrking')
+    parser.add_argument('--gpus', type=int, help='gpus limit')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()

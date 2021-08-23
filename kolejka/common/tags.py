@@ -3,6 +3,9 @@
 import os
 import re
 import sys
+from collections import Counter
+
+from kolejka.common.gpu import gpu_stats
 
 def parse_cpu_name(name):
     name = re.sub(r'@.*', '', name.lower())
@@ -61,7 +64,30 @@ def cpu_tags():
         tags.add('cpus:'+str(count))
     return tags
 
+def gpu_tags():
+    tags = set()
+    counts_per_model = Counter()
+    stats = gpu_stats().dump().get('gpus', {}).items()
+
+    if len(stats) > 0:
+        tags.add('gpu:nvidia')
+
+    for single_count in range(1, len(stats) + 1):
+        tags.add(f'gpus:{single_count}')
+
+    for gpu_id, gpu_params in stats:
+        counts_per_model[gpu_params.get('id')] += 1
+
+    for model_name, count in counts_per_model.items():
+        tags.add(f'gpu:{model_name}')
+
+        for single_count in range(1, count + 1):
+            tags.add(f'gpu:{model_name}:{single_count}')
+
+    return tags
+
 def foreman_auto_tags():
     tags = set()
     tags.update(cpu_tags())
+    tags.update(gpu_tags())
     return list(tags)
