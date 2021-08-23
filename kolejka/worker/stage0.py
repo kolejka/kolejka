@@ -20,6 +20,7 @@ from kolejka.common import kolejka_config, worker_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import ControlGroupSystem
 from kolejka.common import MemoryAction, TimeAction
+from kolejka.common.gpu import gpu_stats, limited_gpuset, full_gpuset
 from kolejka.worker.volume import check_python_volume
 
 def silent_call(*args, **kwargs):
@@ -27,6 +28,9 @@ def silent_call(*args, **kwargs):
     kwargs['stdout'] = kwargs.get('stderr', subprocess.DEVNULL)
     kwargs['stderr'] = kwargs.get('stdout', subprocess.DEVNULL)
     return subprocess.run(*args, **kwargs)
+
+def check_gpu_runtime_availability():
+    assert shutil.which('nvidia-container-runtime') is not None, "nvidia-docker is required for GPUs capabilities"
 
 def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     config = worker_config()
@@ -54,6 +58,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits.workspace = config.workspace
     limits.time = config.time
     limits.network = config.network
+    limits.gpus = config.gpus
     task.limits.update(limits)
 
     docker_task = 'kolejka_worker_{}'.format(task.id)
@@ -122,6 +127,12 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         docker_call += [ '--init' ]
         if task.limits.cpus is not None:
             docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
+
+        if task.limits.gpus is not None and task.limits.gpus > 0:
+            check_gpu_runtime_availability()
+            gpus = ','.join(map(str, limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)))
+            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'"device={gpus}"' ]
+
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
             if task.limits.swap is not None:
@@ -187,6 +198,17 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         cid = str(docker_run.stdout, 'utf-8').strip()
         logging.info('Started container {}'.format(cid))
 
+        try:
+            if task.limits.gpus is not None and task.limits.gpus > 0:
+                result.stats.update(
+                    gpu_stats(
+                        gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                    )
+                )
+        except:
+            pass
+        time.sleep(0.1)
+
         while True:
             try:
                 docker_state_run = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', cid], stdout=subprocess.PIPE)
@@ -195,6 +217,13 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 break
             try:
                 result.stats.update(cgs.name_stats(cid))
+
+                if task.limits.gpus is not None and task.limits.gpus > 0:
+                    result.stats.update(
+                        gpu_stats(
+                            gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                        )
+                    )
             except:
                 pass
             time.sleep(0.1)
@@ -253,7 +282,8 @@ def config_parser(parser):
     parser.add_argument('--image', action=MemoryAction, help='image size limit')
     parser.add_argument('--workspace', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
-    parser.add_argument('--network',type=bool, help='allow netowrking')
+    parser.add_argument('--network', type=bool, help='allow netowrking')
+    parser.add_argument('--gpus', type=int, help='gpus limit')
     def execute(args):
         kolejka_config(args=args)
         config = worker_config()
