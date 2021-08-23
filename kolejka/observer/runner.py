@@ -1,16 +1,15 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-import contextlib
 import grp
 import io
 import json
 import logging
-import multiprocessing
 import os
 import pathlib
 import pwd
 import subprocess
 import sys
+import threading
 
 from kolejka.common import settings
 from kolejka.common import KolejkaLimits
@@ -92,9 +91,6 @@ def file_writer(path, append =False, max_bytes =None):
     fd_read, fd_write = os.pipe()
     def writer():
         bytes = 0
-        os.closerange(3,fd_read)
-        os.closerange(fd_read+1, os.sysconf('SC_OPEN_MAX'))
-        #os.close(fd_write)
         with path.open(mode) as output:
             while True:
                 data = os.read(fd_read, 65536)
@@ -107,10 +103,10 @@ def file_writer(path, append =False, max_bytes =None):
                         data = b''
                 bytes += len(data)
                 output.write(data)
-    w = multiprocessing.Process(target=writer)
+        os.close(fd_read)
+    w = threading.Thread(target=writer)
     w.start()
-    os.close(fd_read)
-    return io.FileIO(fd_write, mode='wb', closefd=True)
+    return (io.FileIO(fd_write, mode='wb', closefd=True), w)
 
 
 def main():
@@ -214,33 +210,43 @@ def main():
         env[var] = val
 
     def execute():
-        with contextlib.ExitStack() as stack:
-            stdin_file = None
-            stdout_file = None
-            stderr_file = None
-            if args.stdin:
-                stdin_file = stack.enter_context(file_reader(args.stdin))
-            if args.stdout:
-                stdout_file = stack.enter_context(file_writer(args.stdout, append=args.stdout_append, max_bytes=args.stdout_max_bytes))
-            if args.stderr:
-                stderr_file = stack.enter_context(file_writer(args.stderr, append=args.stderr_append, max_bytes=args.stderr_max_bytes))
+        stdin_file = None
+        stdout_file = None
+        stderr_file = None
+        writers = []
+        if args.stdin:
+            stdin_file = file_reader(args.stdin)
+        if args.stdout:
+            stdout_file,stdout_writer = file_writer(args.stdout, append=args.stdout_append, max_bytes=args.stdout_max_bytes)
+            writers.append(stdout_writer)
+        if args.stderr:
+            stderr_file,stderr_writer = file_writer(args.stderr, append=args.stderr_append, max_bytes=args.stderr_max_bytes)
+            writers.append(stderr_writer)
+        result = run(args.args,
+            stdin=stdin_file,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            check=False,
+            env=env,
+            start_new_session=args.session,
+            chroot=args.root,
+            cwd=args.dir,
+            nice=args.nice,
+            umask=args.umask,
+            user=uid,
+            group=gid,
+            groups=groups,
+            limits=limits
+        )
+        if stdin_file:
+            stdin_file.close()
+        if stdout_file:
+            stdout_file.close()
+        if stderr_file:
+            stderr_file.close()
+        for writer in writers:
+            writer.join()
 
-            result = run(args.args,
-                stdin=stdin_file,
-                stdout=stdout_file,
-                stderr=stderr_file,
-                check=False,
-                env=env,
-                start_new_session=args.session,
-                chroot=args.root,
-                cwd=args.dir,
-                nice=args.nice,
-                umask=args.umask,
-                user=uid,
-                group=gid,
-                groups=groups,
-                limits=limits
-            )
         if args.stats_file:
             with open(args.stats_file, 'w') as stats_file:
                 json.dump(result.stats.dump(), stats_file, sort_keys=2, indent=2)
