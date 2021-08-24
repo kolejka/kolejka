@@ -63,6 +63,8 @@ def task(request, key=''):
                 time=settings.LIMIT_TIME,
                 image=settings.LIMIT_IMAGE,
                 workspace=settings.LIMIT_WORKSPACE,
+                gpus=settings.LIMIT_GPUS,
+                gpu_memory=settings.LIMIT_GPU_MEMORY,
             )
         t.limits.update(limits)
 

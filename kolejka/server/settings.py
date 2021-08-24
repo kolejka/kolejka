@@ -111,6 +111,8 @@ LIMIT_NETWORK = None
 LIMIT_TIME = None
 LIMIT_IMAGE = None
 LIMIT_WORKSPACE = None
+LIMIT_GPUS = None
+LIMIT_GPU_MEMORY = None
 
 IMAGE_NAME_MAPS = [
 #        ( r'kolejka([:/].*)', r'kolejka\1' ),
