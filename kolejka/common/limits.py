@@ -190,10 +190,16 @@ class KolejkaStats:
             args.update(kwargs)
             self.name = args.get('name', None)
             self.id = args.get('id', None)
-            self.total_memory = parse_memory(args.get('total_memory', None))
+            self.memory_total = parse_memory(args.get('memory_total', None))
             self.memory_usage = parse_memory(args.get('memory_usage', None))
+            self.max_memory_usage = parse_int(args.get('max_memory_usage', None))
+            self.max_memory_usage = max_none(self.max_memory_usage, self.memory_usage)
+            self.temperature = parse_int(args.get('temperature', None))
             self.max_temperature = parse_int(args.get('max_temperature', None))
+            self.max_temperature = max_none(self.max_temperature, self.temperature)
+            self.utilization = parse_int(args.get('utilization', None))
             self.max_utilization = parse_int(args.get('max_utilization', None))
+            self.max_utilization = max_none(self.max_utilization, self.utilization)
         def dump(self):
             res = dict()
             if self.name is not None:
@@ -201,21 +207,33 @@ class KolejkaStats:
             if self.name is not None:
                 res['id'] = self.id
             if self.total_memory is not None:
-                res['total_memory'] = unparse_memory(self.total_memory)
+                res['memory_total'] = unparse_memory(self.memory_total)
             if self.memory_usage is not None:
                 res['memory_usage'] = unparse_memory(self.memory_usage)
+            if self.max_memory_usage is not None:
+                res['max_memory_usage'] = unparse_memory(self.max_memory_usage)
+            if self.temperature is not None:
+                res['temperature'] = self.temperature
             if self.max_temperature is not None:
                 res['max_temperature'] = self.max_temperature
+            if self.utilization is not None:
+                res['utilization'] = self.utilization
             if self.max_utilization is not None:
                 res['max_utilization'] = self.max_utilization
             return res
         def update(self, other):
             self.name = first_none(self.name, other.name)
             self.id = first_none(self.id, other.id)
-            self.total_memory = min_none(self.total_memory, other.total_memory)
-            self.memory_usage = max_none(self.memory_usage, other.memory_usage)
-            self.max_temperature = max_none(self.max_temperature, other.max_temperature)
-            self.max_utilization = max_none(self.max_utilization, other.max_utilization)
+            self.memory = min_none(self.memory, other.memory)
+            if other.memory_usage is not None:
+                self.memory_usage = other.memory_usage
+            self.max_memory_usage = max_none(self.max_memory_usage, other.max_memory_usage, self.memory_usage)
+            if other.temperature is not None:
+                self.temperature = other.temperature
+            self.max_temperature = max_none(self.max_temperature, other.max_temperature, self.temperature)
+            if other.utilization is not None:
+                self.utilization = other.utilization
+            self.max_utilization = max_none(self.max_utilization, other.max_utilization, self.utilization)
 
     def __init__(self, **kwargs):
         self.load(kwargs)

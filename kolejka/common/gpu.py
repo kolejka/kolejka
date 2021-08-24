@@ -6,23 +6,21 @@ def normalize_name(name: str) -> str:
     return '-'.join(name.lower().split(' ')[1:])
 
 def gpu_stats(gpus: list = None):
-    query = gpustat.GPUStatCollection.new_query()
-
     stats = KolejkaStats()
-    stats.load({
-        'gpus': {
-            f'{index}': {
+    try:
+        query = gpustat.GPUStatCollection.new_query()
+        stats.load({ 'gpus' : {
+            str(index) : {
                 'name': gpu.name,
                 'id': normalize_name(gpu.name),
-                'total_memory': gpu.memory_total * 1024 * 1024,
+                'memory_total': gpu.memory_total * 1024 * 1024,
                 'memory_usage': gpu.memory_total * 1024 * 1024 - gpu.memory_free * 1024 * 1024,
-                'max_temperature': gpu.temperature,
-                'max_utilization': gpu.utilization
-            } for index, gpu in enumerate(query.gpus)
-            if gpus is None or str(index) in gpus
-        }
-    })
-
+                'temperature': gpu.temperature,
+                'utilization': gpu.utilization
+            } for index, gpu in enumerate(query.gpus) if gpus is None or str(index) in gpus
+        }})
+    except:
+        pass
     return stats
 
 def full_gpuset():
