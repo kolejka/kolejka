@@ -30,6 +30,8 @@ def settings(request):
             workspace=settings.LIMIT_WORKSPACE,
             network=settings.LIMIT_NETWORK,
             time=settings.LIMIT_TIME,
+            gpus=settings.LIMIT_GPUS,
+            gpu_memory=settings.LIMIT_GPU_MEMORY,
         )
     response['limits'] = limits.dump()
     return OKResponse(response)
