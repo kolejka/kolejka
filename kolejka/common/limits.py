@@ -11,6 +11,15 @@ def min_none(*args):
     if len(args) > 0:
         return args[0]
 
+def min_none_is_min(*args):
+    for a in args:
+        if a is None:
+            return None
+    if len(args) > 1:
+        return min(*args)
+    if len(args) > 0:
+        return args[0]
+
 def max_none(*args):
     args = [ a for a in args if a is not None ]
     if len(args) > 1:
@@ -91,7 +100,7 @@ class KolejkaLimits:
         self.image = min_none(self.image, other.image)
         self.workspace = min_none(self.workspace, other.workspace)
         self.time = min_none(self.time, other.time)
-        self.gpus = min_none(self.gpus, other.gpus)
+        self.gpus = min_none_is_min(self.gpus, other.gpus)
         self.gpus_offset = min_none(self.gpus_offset, other.gpus_offset)
         self.gpu_memory = min_none(self.gpu_memory, other.gpu_memory)
 
