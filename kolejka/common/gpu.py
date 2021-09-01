@@ -1,9 +1,13 @@
+# vim:ts=4:sts=4:sw=4:expandtab
+
+import re
+
 import gpustat
 
 from kolejka.common.limits import KolejkaStats
 
 def normalize_name(name: str) -> str:
-    return '-'.join(name.lower().split(' ')[1:])
+    return ' '.join([part for part in name.lower().split(' ') if part and (part not in ['nvidia']) and not re.match(r'[0-9]+[kmgt]b', part)])
 
 def gpu_stats(gpus: list = None):
     stats = KolejkaStats()

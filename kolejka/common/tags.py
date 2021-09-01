@@ -72,17 +72,8 @@ def gpu_tags():
     if len(stats) > 0:
         tags.add('gpu:nvidia')
 
-    for single_count in range(1, len(stats) + 1):
-        tags.add(f'gpus:{single_count}')
-
     for gpu_id, gpu_params in stats:
-        counts_per_model[gpu_params.get('id')] += 1
-
-    for model_name, count in counts_per_model.items():
-        tags.add(f'gpu:{model_name}')
-
-        for single_count in range(1, count + 1):
-            tags.add(f'gpu:{model_name}:{single_count}')
+        tags.add('gpu:'+gpu_params.get('id'))
 
     return tags
 

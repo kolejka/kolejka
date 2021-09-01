@@ -122,6 +122,7 @@ def foreman():
         elif v.memory_total is not None:
             limits.gpu_memory = min(limits.gpu_memory, v.memory_total)
     client = KolejkaClient()
+    logging.debug('Foreman tags: {}, limits: {}'.format(config.tags, limits.dump()))
     while True:
         try:
             tasks = client.dequeue(config.concurency, limits, config.tags)
