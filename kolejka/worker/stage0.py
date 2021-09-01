@@ -59,6 +59,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits.time = config.time
     limits.network = config.network
     limits.gpus = config.gpus
+    if limits.gpus is None:
+        limits.gpus = len(gpu_stats().gpus)
     task.limits.update(limits)
 
     docker_task = 'kolejka_worker_{}'.format(task.id)

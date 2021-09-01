@@ -29,7 +29,7 @@ def dequeue(request):
     limits.load(params.get('limits', dict()))
     tags = set(params.get('tags', list()))
     resources = KolejkaLimits()
-    resources.update(limits)
+    resources.copy(limits)
     image_usage = dict()
 
     available_tasks = Task.objects.filter(assignee__isnull=True).order_by('time_create')[0:100]

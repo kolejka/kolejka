@@ -194,6 +194,8 @@ class KolejkaClient:
         limits.time = self.config.time
         limits.network = self.config.network
         limits.gpus = self.config.gpus
+        if limits.gpus is None:
+            limits.gpus = task.limits.gpus
         limits.gpu_memory = self.config.gpu_memory
         task.limits.update(limits)
         if not self.instance_session:

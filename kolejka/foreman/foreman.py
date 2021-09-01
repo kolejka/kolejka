@@ -23,6 +23,7 @@ from kolejka.common import kolejka_config, foreman_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction, parse_memory
 from kolejka.client import KolejkaClient
+from kolejka.common.gpu import gpu_stats
 from kolejka.common.images import (
     pull_docker_image,
     get_docker_image_size,
@@ -100,6 +101,7 @@ def foreman_single(temp_path, task):
 
 def foreman():
     config = foreman_config()
+    gstats = gpu_stats().gpus
     limits = KolejkaLimits()
     limits.cpus = config.cpus
     limits.memory = config.memory
@@ -111,7 +113,14 @@ def foreman():
     limits.time = config.time
     limits.network = config.network
     limits.gpus = config.gpus
+    if limits.gpus is None:
+        limits.gpus = len(gstats)
     limits.gpu_memory = config.gpu_memory
+    for k,v in gstats.items():
+        if limits.gpu_memory is None:
+            limits.gpu_memory = v.memory_total
+        elif v.memory_total is not None:
+            limits.gpu_memory = min(limits.gpu_memory, v.memory_total)
     client = KolejkaClient()
     while True:
         try:
@@ -122,7 +131,7 @@ def foreman():
                 check_python_volume()
                 while len(tasks) > 0:
                     resources = KolejkaLimits()
-                    resources.update(limits)
+                    resources.copy(limits)
                     image_usage = dict()
                     processes = list()
                     cpus_offset = 0

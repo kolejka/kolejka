@@ -104,6 +104,9 @@ class KolejkaLimits:
         self.gpus_offset = min_none(self.gpus_offset, other.gpus_offset)
         self.gpu_memory = min_none(self.gpu_memory, other.gpu_memory)
 
+    def copy(self, other):
+        self.load(other.dump())
+
 class KolejkaStats:
     class CpusStats:
         def __init__(self, **kwargs):
@@ -129,6 +132,8 @@ class KolejkaStats:
             self.system = max_none(self.system, other.system)
             self.user = max_none(self.user, other.user)
             self.usage = max_none(self.usage, sum_none(self.system, self.user))
+        def copy(self, other):
+            self.load(other.dump())
         def add(self, other):
             self.usage = sum_none(self.usage, other.usage)
             self.system = sum_none(self.system, other.system)
@@ -169,6 +174,8 @@ class KolejkaStats:
                 self.swap = other.swap
             self.max_swap = max_none(self.max_swap, other.max_swap, self.swap)
             self.failures = max_none(self.failures, other.failures)
+        def copy(self, other):
+            self.load(other.dump())
 
     class PidsStats:
         def __init__(self, **kwargs):
@@ -194,6 +201,8 @@ class KolejkaStats:
                 self.usage = other.usage
             self.max_usage = max_none(self.max_usage, other.max_usage, self.usage)
             self.failures = max_none(self.failures, other.failures)
+        def copy(self, other):
+            self.load(other.dump())
 
     class GpuStats:
         def __init__(self, **kwargs):
@@ -247,6 +256,8 @@ class KolejkaStats:
             if other.utilization is not None:
                 self.utilization = other.utilization
             self.max_utilization = max_none(self.max_utilization, other.max_utilization, self.utilization)
+        def copy(self, other):
+            self.load(other.dump())
 
     def __init__(self, **kwargs):
         self.load(kwargs)
@@ -302,3 +313,6 @@ class KolejkaStats:
             if k not in self.gpus:
                 self.gpus[k] = KolejkaStats.GpuStats()
             self.gpus[k].update(v)
+
+    def copy(self, other):
+        self.load(other.dump())
