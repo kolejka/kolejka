@@ -174,7 +174,7 @@ def foreman():
                             cpus_offset += task.limits.cpus
                             if resources.cpus is not None:
                                 resources.cpus -= task.limits.cpus
-                            if resources.gpus is not None:
+                            if resources.gpus is not None and task.limits.gpus is not None:
                                 resources.gpus -= task.limits.gpus
                                 gpus_offset += task.limits.gpus
                             if resources.memory is not None:

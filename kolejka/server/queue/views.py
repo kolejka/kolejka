@@ -76,7 +76,7 @@ def dequeue(request):
         t.save()
         if resources.cpus is not None:
             resources.cpus -= tt.limits.cpus
-        if resources.gpus is not None:
+        if resources.gpus is not None and tt.limits.gpus is not None:
             resources.gpus -= tt.limits.gpus
         if resources.memory is not None:
             resources.memory -= tt.limits.memory
