@@ -2,8 +2,6 @@
 
 import re
 
-import gpustat
-
 from kolejka.common.limits import KolejkaStats
 
 def normalize_name(name: str) -> str:
@@ -11,7 +9,9 @@ def normalize_name(name: str) -> str:
 
 def gpu_stats(gpus: list = None):
     stats = KolejkaStats()
+    stats.load({ 'gpus' : {} })
     try:
+        import gpustat
         query = gpustat.GPUStatCollection.new_query()
         stats.load({ 'gpus' : {
             str(index) : {
@@ -28,8 +28,14 @@ def gpu_stats(gpus: list = None):
     return stats
 
 def full_gpuset():
-    query = gpustat.GPUStatCollection.new_query()
-    return list(range(len(query.gpus)))
+    gpuset = list()
+    try:
+        import gpustat
+        query = gpustat.GPUStatCollection.new_query()
+        gpuset = list(range(len(query.gpus)))
+    except:
+        pass
+    return gpuset
 
 def limited_gpuset(full, gpus, gpus_offset):
     if gpus_offset is None:
