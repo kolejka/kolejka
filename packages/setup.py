@@ -12,8 +12,8 @@ kolejka = {
         'long_description' : 'kolejka is a lightweight task scheduling platform developed for a small computational grid at Faculty of Mathematics and Computer Science of the Jagiellonian University in Kraków.',
         'license' : 'MIT',
         'version' : '0.1',
-        'python_requires' : '>=3.5',
-       'namespace_packages' : [ 'kolejka' ],
+        'python_requires' : '>=3.7',
+        'namespace_packages' : [ 'kolejka' ],
     }
 
 from KolejkaCommon.setup import kolejka_common
