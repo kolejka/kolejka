@@ -1,6 +1,6 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-from django.conf.urls import include, url
+from django.conf.urls import include
 from django.urls import path
 from django.contrib.admin import site as admin_site
 
