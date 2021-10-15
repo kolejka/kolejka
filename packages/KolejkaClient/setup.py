@@ -3,15 +3,12 @@
 
 import os
 import re
-from setuptools import setup, find_packages
-
-def sub_find_packages(module):
-    return [ module ] + [ module + '.' + submodule for submodule in find_packages(re.sub(r'\.', r'/', module)) ]
+from setuptools import setup, find_namespace_packages
 
 kolejka_client = {
         'name' : 'KolejkaClient',
         'description' : 'Kolejka Client',
-        'packages' : sub_find_packages('kolejka.client'),
+        'packages' : find_namespace_packages(include=['kolejka.*']),
         'install_requires' : [
             'appdirs',
             'requests',
