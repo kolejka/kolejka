@@ -88,7 +88,7 @@ class KolejkaLimits:
         if self.gpus_offset is not None:
             res['gpus_offset'] = self.gpus_offset
         if self.gpu_memory is not None:
-            res['gpu_memory'] = self.gpu_memory
+            res['gpu_memory'] = unparse_memory(self.gpu_memory)
         return res
 
     def update(self, other):

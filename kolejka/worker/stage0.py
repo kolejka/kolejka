@@ -67,7 +67,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
     docker_cleanup  = [
         [ 'docker', 'kill', docker_task ],
-        [ 'docker', 'rm', docker_task ],
+        [ 'docker', 'rm', '--force', docker_task ],
     ]
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
