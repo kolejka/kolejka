@@ -155,7 +155,7 @@ class KolejkaClient:
         os.makedirs(dir_path, exist_ok=True)
         try:
             with open(blob_path, 'wb') as blob_file:
-                for chunk in response.iter_content():
+                for chunk in response.iter_content(chunk_size=1024*1024*4):
                     if chunk:
                         blob_file.write(chunk)
         except:

@@ -4,7 +4,7 @@ import hashlib
 import os
 
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, StreamingHttpResponse
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from . import models
@@ -76,7 +76,7 @@ def reference(request, key=''):
     if request.method == 'GET' or request.method == 'HEAD': #GET REFERENCED BLOB
         reference.blob.save()
         reference.save()
-        return StreamingHttpResponse(reference.blob.open(), content_type='application/octet-stream')
+        return FileResponse(reference.blob.open(), content_type='application/octet-stream')
     return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
 
 def blob(request, key):
@@ -120,5 +120,5 @@ def blob(request, key):
         return OKResponse({'deleted' : True})
     if request.method == 'GET' or request.method == 'HEAD':
         blob.save()
-        return StreamingHttpResponse(blob.open(), content_type='application/octet-stream')
+        return FileResponse(blob.open(), content_type='application/octet-stream')
     return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
