@@ -47,6 +47,13 @@ class Blob(models.Model):
     def inactive_path(self):
         return Blob.blob_inactive_path(self.key)
 
+    @property
+    def realpath(self):
+        if os.path.exists(self.store_path):
+            return os.path.realpath(self.store_path)
+        if os.path.exists(self.inactive_path):
+            return os.path.realpath(self.inactive_path)
+
     def open(self):
         if os.path.exists(self.store_path):
             return open(self.store_path, "rb")

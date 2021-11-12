@@ -132,6 +132,8 @@ IMAGE_REGISTRY_NAME = 'kolejka_task'
 IMAGE_REGISTRY_USERNAME = None
 IMAGE_REGISTRY_PASSWORD = None
 
+USE_X_SENDFILE = False
+
 try:
     from kolejka.server.settings_local import *
 except ImportError:
