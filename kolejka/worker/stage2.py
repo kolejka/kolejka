@@ -24,6 +24,9 @@ RESULT_SPEC='kolejka_result.json'
 #THIS NEEDS TO BE THE SAME AS kolejka.common.settings.OBSERVER_SOCKET
 OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"
 
+WORKER_RESERVED_DISK_NAME = '.__reserved_disk_space__'
+WORKER_RESERVED_DISK_SIZE = 1024*1024
+
 def parse_float_with_modifiers(x, modifiers):
     if isinstance(x, float):
         return x
@@ -187,6 +190,11 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                 logging.warning('Failed to chmod {}'.format(abspath))
                 pass
 
+    reserved_disk_path = os.path.join(result_path, WORKER_RESERVED_DISK_NAME)
+    with open(reserved_disk_path, 'wb') as reserved_disk_file:
+        reserved_disk_file.write(b'\1' * WORKER_RESERVED_DISK_SIZE)
+    os.chmod(reserved_disk_path, 0o444)
+
     task = dict()
     task_spec_path = os.path.join(task_path, TASK_SPEC)
     with open(task_spec_path) as task_spec_file:
@@ -292,6 +300,9 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
     if observer:
         summary['stats'] = observer_stop(*observer)
     summary['result'] = result.returncode
+
+    os.chmod(reserved_disk_path, 0o700)
+    os.unlink(reserved_disk_path)
 
     orig_path = os.getcwd()
     os.chdir(task_path)

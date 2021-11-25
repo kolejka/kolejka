@@ -15,7 +15,7 @@ import tempfile
 import time
 import uuid
 
-from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_DIRECTORY, WORKER_PYTHON_VOLUME
+from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_DIRECTORY, WORKER_PYTHON_VOLUME, WORKER_RESERVED_DISK_NAME, WORKER_RESERVED_DISK_SIZE
 from kolejka.common import kolejka_config, worker_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import ControlGroupSystem
@@ -72,6 +72,10 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
 #TODO jailed_path size remains unlimited?
+        reserved_disk_path = os.path.join(jailed_path, WORKER_RESERVED_DISK_NAME)
+        with open(reserved_disk_path, 'wb') as reserved_disk_file:
+            reserved_disk_file.write(b'\1' * WORKER_RESERVED_DISK_SIZE)
+        os.chmod(reserved_disk_path, 0o400)
         logging.debug('Using {} as temporary directory'.format(jailed_path))
         jailed_task_path = os.path.join(jailed_path, 'task')
         os.makedirs(jailed_task_path, exist_ok=True)
@@ -251,6 +255,9 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         result.stats.pids.usage = None
         result.stats.memory.usage = None
         result.stats.memory.swap = None
+
+        os.chmod(reserved_disk_path, 0o700)
+        os.unlink(reserved_disk_path)
 
         for dirpath, dirnames, filenames in os.walk(jailed_result_path):
             for filename in filenames:
