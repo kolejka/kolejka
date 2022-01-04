@@ -1,6 +1,5 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-import appdirs
 import argparse
 import configparser
 import json
@@ -10,6 +9,19 @@ import os
 from .parse import parse_memory, parse_time, parse_bool, parse_int, parse_float, parse_str_list
 from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SERVER, FOREMAN_INTERVAL, FOREMAN_CONCURENCY
 from .tags import foreman_auto_tags
+
+def config_dirs():
+    check_dirs = list()
+    try:
+        import appdirs
+        conf_dirs = appdirs.AppDirs(CONFIG_APP_NAME, CONFIG_APP_AUTHOR, multipath=True)
+        check_dirs += conf_dirs.user_config_dir.split(':')
+        check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
+        check_dirs += conf_dirs.site_config_dir.split(':')
+    except:
+        check_dirs += [ os.path.join(os.path.expanduser('~/.config/'), CONFIG_APP_NAME) ]
+        check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
+    return check_dirs
 
 class KolejkaConfig:
     def __init__(self, config_file=None, config=None, args=None, **kwargs):
@@ -28,10 +40,7 @@ class KolejkaConfig:
         if self.config_file is None:
             self.config_file = args.get('config_file', None)
         if self.config_file is None:
-            conf_dirs = appdirs.AppDirs(CONFIG_APP_NAME, CONFIG_APP_AUTHOR, multipath=True)
-            check_dirs = conf_dirs.user_config_dir.split(':')
-            check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
-            check_dirs += conf_dirs.site_config_dir.split(':')
+            check_dirs = config_dirs()
             logging.debug('Looking for configuration in {}'.format(check_dirs))
             for path in check_dirs:
                 check_path = os.path.join(path, CONFIG_FILE)
