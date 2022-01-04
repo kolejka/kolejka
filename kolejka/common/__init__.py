@@ -11,9 +11,13 @@ from kolejka.common.task import KolejkaTask, KolejkaResult
 def main():
     import argparse
     import logging
-    import setproctitle
 
-    setproctitle.setproctitle('kolejka')
+    try:
+        import setproctitle
+        setproctitle.setproctitle('kolejka')
+    except:
+        pass
+
     parser = argparse.ArgumentParser(description='KOLEJKA')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='show more info')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='show debug info')

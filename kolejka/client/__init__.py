@@ -5,10 +5,14 @@ from kolejka.client.client import KolejkaClient
 def main():
     import argparse
     import logging
-    import setproctitle
     from kolejka.client.client import config_parser as client_parser
 
-    setproctitle.setproctitle('kolejka-client')
+    try:
+        import setproctitle
+        setproctitle.setproctitle('kolejka-client')
+    except:
+        pass
+
     parser = argparse.ArgumentParser(description='KOLEJKA client')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='show more info')
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='show debug info')

@@ -114,7 +114,6 @@ def main():
     import daemon
     import logging
     import os
-    import setproctitle
 
     parser = argparse.ArgumentParser(description='KOLEJKA runner')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='show more info')
@@ -154,7 +153,12 @@ def main():
     if args.debug:
         level=logging.DEBUG
     logging.basicConfig(level=level)
-    setproctitle.setproctitle('kolejka-runner')
+
+    try:
+        import setproctitle
+        setproctitle.setproctitle('kolejka-runner')
+    except:
+        pass
     
     limits = KolejkaLimits()
     limits.cpus = args.cpus
