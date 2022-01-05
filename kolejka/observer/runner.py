@@ -1,12 +1,10 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-import grp
 import io
 import json
 import logging
 import os
 import pathlib
-import pwd
 import subprocess
 import sys
 import threading
@@ -112,8 +110,10 @@ def file_writer(path, append =False, max_bytes =None):
 def main():
     import argparse
     import daemon
+    import grp
     import logging
     import os
+    import pwd
 
     parser = argparse.ArgumentParser(description='KOLEJKA runner')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='show more info')
