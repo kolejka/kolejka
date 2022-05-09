@@ -1,21 +1,21 @@
 {
-  "id": "gpus",
-  "image":  "nvidia/cuda:11.0-base",
-  "requires": ["gpus:1"],
+  "id": "example_gpu_simple",
+  "image": "nvidia/cuda:11.0-base",
   "files": {},
   "args": [
-      "/usr/bin/nvidia-smi"
+    "/usr/bin/nvidia-smi"
   ],
   "limits": {
     "gpus": 1,
+    "gpu_memory" : "4G",
     "cpus": 1,
     "pids": 64,
     "memory": "64M",
     "storage": "64M",
-    "image": "2G",
+    "image": "15G",
     "workspace": "64M",
     "time": 10
   },
-  "stderr": "console.txt",
-  "stdout": "console.txt"
+  "stderr": "stderr.txt",
+  "stdout": "stdout.txt"
 }
