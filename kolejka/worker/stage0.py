@@ -38,7 +38,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     task = KolejkaTask(task_path)
     if not task.id:
         task.id = uuid.uuid4().hex
-        logging.warning('Assigned id {} to the task'.format(task.id))
+        logging.warning(f'Assigned id {task.id} to the task')
     if not task.image:
         logging.error('Task does not define system image')
         sys.exit(1)
@@ -76,7 +76,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         with open(reserved_disk_path, 'wb') as reserved_disk_file:
             reserved_disk_file.write(b'\1' * WORKER_RESERVED_DISK_SIZE)
         os.chmod(reserved_disk_path, 0o400)
-        logging.debug('Using {} as temporary directory'.format(jailed_path))
+        logging.debug(f'Using {jailed_path} as temporary directory')
         jailed_task_path = os.path.join(jailed_path, 'task')
         os.makedirs(jailed_task_path, exist_ok=True)
         jailed_result_path = os.path.join(jailed_path, 'result')
@@ -110,7 +110,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             try:
                 shutil.rmtree(task_path)
             except:
-                logging.warning('Failed to remove {}'.format(task_path))
+                logging.warning(f'Failed to remove {task_path}')
                 pass
         for spath in [ os.path.dirname(__file__) ]:
             stage1 = os.path.join(spath, 'stage1.sh')
@@ -137,7 +137,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         if task.limits.gpus is not None and task.limits.gpus > 0:
             check_gpu_runtime_availability()
             gpus = ','.join(map(str, limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)))
-            docker_call += [ '--runtime=nvidia', '--shm-size=1g', '--gpus', f'"device={gpus}"' ]
+            docker_call += [ '--shm-size=1g', '--gpus', f'"device={gpus}"' ]
 
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
@@ -153,9 +153,9 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                     storage_limit = task.limits.storage
                     docker_call += [ '--storage-opt', 'size='+str(storage_limit) ]
                 else:
-                    logging.warning("Storage limit on {} ({}) is not supported".format(storage_driver, storage_fs))
+                    logging.warning(f"Storage limit on {storage_driver} ({storage_fs}) is not supported")
             else:
-                logging.warning("Storage limit on {} is not supported".format(storage_driver))
+                logging.warning(f"Storage limit on {storage_driver} is not supported")
         if task.limits.network is not None:
             if not task.limits.network:
                 docker_call += [ '--network=none' ]
@@ -177,7 +177,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--verbose' ]
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'task') ]
         docker_call += [ os.path.join(WORKER_DIRECTORY, 'result') ]
-        logging.debug('Docker call : {}'.format(docker_call))
+        logging.debug(f'Docker call : {docker_call}')
 
         pull_image = config.pull
         if not pull_image:
@@ -202,7 +202,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         start_time = datetime.datetime.now()
         docker_run = subprocess.run(docker_call, stdout=subprocess.PIPE)
         cid = str(docker_run.stdout, 'utf-8').strip()
-        logging.info('Started container {}'.format(cid))
+        logging.info(f'Started container {cid}')
 
         try:
             if task.limits.gpus is not None and task.limits.gpus > 0:
