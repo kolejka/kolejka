@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 from .parse import parse_time, parse_memory, parse_int, parse_bool
 from .parse import unparse_time, unparse_memory
 from .parse import json_dict_load
@@ -234,7 +236,7 @@ class KolejkaStats:
             res = dict()
             if self.name is not None:
                 res['name'] = self.name
-            if self.name is not None:
+            if self.id is not None:
                 res['id'] = self.id
             if self.memory_total is not None:
                 res['memory_total'] = unparse_memory(self.memory_total)
@@ -290,6 +292,10 @@ class KolejkaStats:
         self.time = parse_time(args.get('time', None))
         self.gpus = dict()
         for key, val in args.get('gpus', {}).items():
+            try:
+                key = int(key)
+            except ValueError:
+                continue
             self.gpus[key] = KolejkaStats.GpuStats()
             self.gpus[key].load(val)
 

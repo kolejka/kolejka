@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 from kolejka.client.client import KolejkaClient
 
 def main():

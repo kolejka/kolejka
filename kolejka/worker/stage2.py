@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # vim:ts=4:sts=4:sw=4:expandtab
 
 #THIS SCRIPT MAY IMPORT ONLY STANDARD LIBRARY MODULES
@@ -182,12 +183,12 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
             try:
                 os.chown(abspath, os.getuid(), os.getgid())
             except:
-                logging.warning('Failed to chown {}'.format(abspath))
+                logging.warning(f'Failed to chown {abspath}')
                 pass
             try:
                 os.chmod(abspath, 0o750)
             except:
-                logging.warning('Failed to chmod {}'.format(abspath))
+                logging.warning(f'Failed to chmod {abspath}')
                 pass
 
     reserved_disk_path = os.path.join(result_path, WORKER_RESERVED_DISK_NAME)
@@ -288,7 +289,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                 env['USER'] = 'root'
                 env['HOME'] = task_path
                 env.update(task_env)
-                logging.info('Executing task {} < {} > {} 2> {} (Env: {})'.format(task_args, task_stdin, task_stdout, task_stderr, env))
+                logging.info(f'Executing task {task_args} < {task_stdin} > {task_stdout} 2> {task_stderr} (Env: {env})')
                 result = subprocess.run(
                     args=task_args,
                     start_new_session=True,
@@ -296,7 +297,7 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
                     env=env,
                     **kwargs
                 )
-                logging.info('Execution return code {}'.format(result.returncode))
+                logging.info(f'Execution return code {result.returncode}')
     if observer:
         summary['stats'] = observer_stop(*observer)
     summary['result'] = result.returncode
@@ -341,21 +342,21 @@ def stage2(task_path, result_path, consume, cpus=None, cpus_offset=None, memory=
             try:
                 os.chown(abspath, stat.st_uid, stat.st_gid)
             except:
-                logging.warning('Failed to chown {}'.format(abspath))
+                logging.warning(f'Failed to chown {abspath}')
                 pass
         for name in dirnames:
             abspath = os.path.join(dirpath, name)
             try:
                 os.chmod(abspath, 0o750)
             except:
-                logging.warning('Failed to chmod {}'.format(abspath))
+                logging.warning(f'Failed to chmod {abspath}')
                 pass
         for name in filenames:
             abspath = os.path.join(dirpath, name)
             try:
                 os.chmod(abspath, 0o640)
             except:
-                logging.warning('Failed to chmod {}'.format(abspath))
+                logging.warning(f'Failed to chmod {abspath}')
                 pass
 
     if consume:

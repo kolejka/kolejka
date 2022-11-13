@@ -1,15 +1,16 @@
+#!/usr/bin/env python3
 # vim:ts=4:sts=4:sw=4:expandtab
+
+from kolejka.common import settings
 
 import io
 import json
 import logging
 import os
 import pathlib
-import subprocess
 import sys
 import threading
 
-from kolejka.common import settings
 from kolejka.common import KolejkaLimits
 from kolejka.common import MemoryAction, TimeAction
 import kolejka.common.subprocess
@@ -37,20 +38,20 @@ class Starter(kolejka.common.subprocess.Starter):
         commands = list()
         session_id = self.session['session_id']
         secret = self.session['secret']
-        data = bytes(json.dumps(self.session), 'utf8')
+        data = bytes(json.dumps(self.session), 'utf-8')
         request = b'\r\n'.join([
         b'POST /attach HTTP/1.1',
         b'Host: kolejka-observer',
         b'Content-Type: application/json; charset=utf-8',
-        b'Content-Length: '+bytes(str(len(data)),'utf8'),
+        b'Content-Length: '+bytes(str(len(data)), 'utf-8'),
         b'',
         data,
         ])
 
-        commands.append('with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:')
-        commands.append('  sock.connect({})'.format(self.represent(settings.OBSERVER_SOCKET)))
-        commands.append('  sock.sendall({})'.format(self.represent(request)))
-        commands.append('  sock.recv(1024)')
+        commands.append(f'with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:')
+        commands.append(f'  sock.connect({self.represent(settings.OBSERVER_SOCKET)})')
+        commands.append(f'  sock.sendall({self.represent(request)})')
+        commands.append(f'  sock.recv(1024)')
         commands += super().get_commands()
         return commands
 

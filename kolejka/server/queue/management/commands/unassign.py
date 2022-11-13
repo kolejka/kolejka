@@ -1,10 +1,12 @@
-from django.core.management.base import BaseCommand, CommandError
+# vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
+from django.core.management.base import BaseCommand, CommandError
 import django.utils.timezone
 
 from kolejka.server.task.models import Task
 from kolejka.common.parse import TimeAction, parse_time
-from kolejka.server import settings
 
 class Command(BaseCommand):
     help = 'Unassigns overdue tasks'
@@ -15,4 +17,4 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         count = Task.objects.filter(result__isnull=True, assignee__isnull=False, time_assign__lt=django.utils.timezone.now() - options['time']).update(assignee=None, time_assign=None)
         if count:
-            self.stdout.write(self.style.SUCCESS('Successfully unassigned %d tasks' % count))
+            self.stdout.write(self.style.SUCCESS(f'Successfully unassigned {count} tasks'))

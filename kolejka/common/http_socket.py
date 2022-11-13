@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import http.client
 import os
 import socket
@@ -18,13 +20,13 @@ class HTTPUnixServer(socketserver.UnixStreamServer):
         socketserver.UnixStreamServer.server_bind(self)
         os.chmod(self.server_address, 0o777)
         self.server_name = str(self.server_address)
-        self.server_port = ""
+        self.server_port = ''
 
     def get_request(self):
         request, client_address = self.socket.accept()
         client_credentials = request.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize('3i'))
         client_pid, client_uid, client_gid = struct.unpack('3i', client_credentials)
-        return (request, (str(client_pid), ""))
+        return (request, (str(client_pid), ''))
 
     def server_close(self):
         super().server_close()

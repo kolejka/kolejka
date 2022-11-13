@@ -1,11 +1,12 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
-import django.conf
+from django.conf import settings as django_settings
+
 from django.contrib.auth import login as auth_login, logout as auth_logout, authenticate
 from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, StreamingHttpResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from kolejka.common import KolejkaLimits
+from kolejka.common.limits import KolejkaLimits
 from kolejka.server.response import OKResponse, FAILResponse
 
 @ensure_csrf_cookie
@@ -17,21 +18,20 @@ def settings(request):
         return HttpResponseForbidden()
     if request.method != 'GET':
         return HttpResponseNotAllowed(['GET'])
-    settings = django.conf.settings
     response = dict()
-    response['blob_hash_algorithm'] = settings.BLOB_HASH_ALGORITHM
+    response['blob_hash_algorithm'] = django_settings.BLOB_HASH_ALGORITHM
     limits = KolejkaLimits(
-            cpus=settings.LIMIT_CPUS,
-            memory=settings.LIMIT_MEMORY,
-            swap=settings.LIMIT_SWAP,
-            pids=settings.LIMIT_PIDS,
-            storage=settings.LIMIT_STORAGE,
-            image=settings.LIMIT_IMAGE,
-            workspace=settings.LIMIT_WORKSPACE,
-            network=settings.LIMIT_NETWORK,
-            time=settings.LIMIT_TIME,
-            gpus=settings.LIMIT_GPUS,
-            gpu_memory=settings.LIMIT_GPU_MEMORY,
+            cpus=django_settings.LIMIT_CPUS,
+            memory=django_settings.LIMIT_MEMORY,
+            swap=django_settings.LIMIT_SWAP,
+            pids=django_settings.LIMIT_PIDS,
+            storage=django_settings.LIMIT_STORAGE,
+            image=django_settings.LIMIT_IMAGE,
+            workspace=django_settings.LIMIT_WORKSPACE,
+            network=django_settings.LIMIT_NETWORK,
+            time=django_settings.LIMIT_TIME,
+            gpus=django_settings.LIMIT_GPUS,
+            gpu_memory=django_settings.LIMIT_GPU_MEMORY,
         )
     response['limits'] = limits.dump()
     return OKResponse(response)
@@ -44,13 +44,13 @@ def login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             auth_login(request, user)
-            return OKResponse({})
-        return FAILResponse({})
+            return OKResponse()
+        return FAILResponse()
     if request.method == 'GET':
-        return OKResponse({})
+        return OKResponse()
     return HttpResponseNotAllowed(['GET', 'POST'])
 
 @ensure_csrf_cookie
 def logout(request):
     auth_logout(request)
-    return OKResponse({})
+    return OKResponse()

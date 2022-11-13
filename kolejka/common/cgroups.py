@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import glob
 import logging
 import os
@@ -28,13 +30,13 @@ class ControlGroupSystem:
                     for group in groups:
                         if re.match(r'^name=.*', group):
                             group = group[len('name='):]
-                            logging.debug('Found \'{}\' control group at mount point \'{}\''.format(group, path))
+                            logging.debug(f'Found \'{group}\' control group at mount point \'{path}\'')
                             self.mount_points[group] = path
                             named=True
                     if not named:
                         for group in available_groups:
                             if group in groups:
-                                logging.debug('Found \'{}\' control group at mount point \'{}\''.format(group, path))
+                                logging.debug(f'Found \'{group}\' control group at mount point \'{path}\'')
                                 self.mount_points[group] = path
 
     def mount_point(self, group):
@@ -52,17 +54,15 @@ class ControlGroupSystem:
                 num, groups, path, = re.split(r':', line.strip())
                 for group in re.split(r',', groups):
                     result[group] = path
-        #logging.debug('Control groups for pid {} : {}'.format(pid, ', '.join([k+':'+v for k,v in result.items()])))
         return result
 
     def name_groups(self, name):
         result = dict()
         for group, mp in self.mount_points.items():
-            search = glob.glob(os.path.join(mp,'**',name), recursive=True)
+            search = glob.glob(os.path.join(mp, '**', name), recursive=True)
             if len(search) == 1:
                 if os.path.isdir(search[0]):
                     result[group] = search[0][len(mp)+1:]
-        #logging.debug('Control groups for name {} : {}'.format(name, ', '.join([k+':'+v for k,v in result.items()])))
         return result
 
     def parse_cpuset(self, cpus):

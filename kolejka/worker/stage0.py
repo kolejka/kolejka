@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import copy
 import datetime
 import dateutil.parser
@@ -15,12 +17,11 @@ import tempfile
 import time
 import uuid
 
-from kolejka.common.settings import OBSERVER_SOCKET, TASK_SPEC, RESULT_SPEC, WORKER_HOSTNAME, WORKER_DIRECTORY, WORKER_PYTHON_VOLUME, WORKER_RESERVED_DISK_NAME, WORKER_RESERVED_DISK_SIZE
 from kolejka.common import kolejka_config, worker_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
 from kolejka.common import ControlGroupSystem
 from kolejka.common import MemoryAction, TimeAction
-from kolejka.common.gpu import gpu_stats, limited_gpuset, full_gpuset
+from kolejka.common.gpu import gpu_stats, limited_gpuset
 from kolejka.worker.volume import check_python_volume
 
 def silent_call(*args, **kwargs):
@@ -63,7 +64,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         limits.gpus = len(gpu_stats().gpus)
     task.limits.update(limits)
 
-    docker_task = 'kolejka_worker_{}'.format(task.id)
+    docker_task = f'kolejka_worker_{task.id}'
 
     docker_cleanup  = [
         [ 'docker', 'kill', docker_task ],
@@ -72,9 +73,9 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
 
     with tempfile.TemporaryDirectory(dir=temp_path) as jailed_path:
 #TODO jailed_path size remains unlimited?
-        reserved_disk_path = os.path.join(jailed_path, WORKER_RESERVED_DISK_NAME)
+        reserved_disk_path = os.path.join(jailed_path, settings.WORKER_RESERVED_DISK_NAME)
         with open(reserved_disk_path, 'wb') as reserved_disk_file:
-            reserved_disk_file.write(b'\1' * WORKER_RESERVED_DISK_SIZE)
+            reserved_disk_file.write(b'\1' * settings.WORKER_RESERVED_DISK_SIZE)
         os.chmod(reserved_disk_path, 0o400)
         logging.debug(f'Using {jailed_path} as temporary directory')
         jailed_task_path = os.path.join(jailed_path, 'task')
@@ -87,13 +88,13 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         jailed.files.clear()
         volumes = list()
         check_python_volume()
-        if os.path.exists(OBSERVER_SOCKET):
-            volumes.append((OBSERVER_SOCKET, OBSERVER_SOCKET, 'rw'))
+        if os.path.exists(settings.OBSERVER_SOCKET):
+            volumes.append((settings.OBSERVER_SOCKET, settings.OBSERVER_SOCKET, 'rw'))
         else:
             logging.warning('Observer is not running.')
-        volumes.append((jailed_result_path, os.path.join(WORKER_DIRECTORY, 'result'), 'rw'))
+        volumes.append((jailed_result_path, os.path.join(settings.WORKER_DIRECTORY, 'result'), 'rw'))
         for key, val in task.files.items():
-            if key != TASK_SPEC:
+            if key != settings.TASK_SPEC:
                 src_path = os.path.join(task.path, val.path)
                 dst_path = os.path.join(jailed_path, 'task', key)
                 os.makedirs(os.path.dirname(dst_path), exist_ok=True)
@@ -102,10 +103,10 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 else:
                     shutil.copy(src_path, dst_path)
                 jailed.files.add(key)
-        jailed.files.add(TASK_SPEC)
+        jailed.files.add(settings.TASK_SPEC)
         #jailed.limits = KolejkaLimits() #TODO: Task is limited by docker, no need to limit it again?
         jailed.commit()
-        volumes.append((jailed.path, os.path.join(WORKER_DIRECTORY, 'task'), 'rw'))
+        volumes.append((jailed.path, os.path.join(settings.WORKER_DIRECTORY, 'task'), 'rw'))
         if consume_task_folder:
             try:
                 shutil.rmtree(task_path)
@@ -115,29 +116,29 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
         for spath in [ os.path.dirname(__file__) ]:
             stage1 = os.path.join(spath, 'stage1.sh')
             if os.path.isfile(stage1):
-                volumes.append((stage1, os.path.join(WORKER_DIRECTORY, 'stage1.sh'), 'ro'))
+                volumes.append((stage1, os.path.join(settings.WORKER_DIRECTORY, 'stage1.sh'), 'ro'))
                 break
         for spath in [ os.path.dirname(__file__) ]:
             stage2 = os.path.join(spath, 'stage2.py')
             if os.path.isfile(stage2):
-                volumes.append((stage2, os.path.join(WORKER_DIRECTORY, 'stage2.py'), 'ro'))
+                volumes.append((stage2, os.path.join(settings.WORKER_DIRECTORY, 'stage2.py'), 'ro'))
                 break
 
         docker_call  = [ 'docker', 'run' ]
         docker_call += [ '--detach' ]
         docker_call += [ '--name', docker_task ]
-        docker_call += [ '--entrypoint', os.path.join(WORKER_DIRECTORY, 'stage1.sh') ]
+        docker_call += [ '--entrypoint', os.path.join(settings.WORKER_DIRECTORY, 'stage1.sh') ]
         for key, val in task.environment.items():
-            docker_call += [ '--env', '{}={}'.format(key, val) ]
-        docker_call += [ '--hostname', WORKER_HOSTNAME ]
+            docker_call += [ '--env', f'{key}={val}' ]
+        docker_call += [ '--hostname', settings.WORKER_HOSTNAME ]
         docker_call += [ '--init' ]
         if task.limits.cpus is not None:
             docker_call += [ '--cpuset-cpus', ','.join([str(c) for c in cgs.limited_cpuset(cgs.full_cpuset(), task.limits.cpus, task.limits.cpus_offset)]) ]
 
         if task.limits.gpus is not None and task.limits.gpus > 0:
             check_gpu_runtime_availability()
-            gpus = ','.join(map(str, limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)))
-            docker_call += [ '--shm-size=1g', '--gpus', f'"device={gpus}"' ]
+            gpus = ','.join(map(str, limited_gpuset(task.limits.gpus, task.limits.gpus_offset)))
+            docker_call += [ '--shm-size=1g', '--gpus', f'device={gpus}' ]
 
         if task.limits.memory is not None:
             docker_call += [ '--memory', str(task.limits.memory) ]
@@ -164,10 +165,10 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--pids-limit', str(task.limits.pids) ]
         if task.limits.time is not None:
             docker_call += [ '--stop-timeout', str(int(math.ceil(task.limits.time.total_seconds()))) ]
-        docker_call += [ '--volume', '{}:{}:{}'.format(WORKER_PYTHON_VOLUME, os.path.join(WORKER_DIRECTORY, 'python3'), 'ro') ]
+        docker_call += [ '--volume', f'{settings.WORKER_PYTHON_VOLUME}:{os.path.join(settings.WORKER_DIRECTORY, "python3")}:ro' ]
         for v in volumes:
-            docker_call += [ '--volume', '{}:{}:{}'.format(os.path.realpath(v[0]), v[1], v[2]) ]
-        docker_call += [ '--workdir', WORKER_DIRECTORY ]
+            docker_call += [ '--volume', f'{os.path.realpath(v[0])}:{v[1]}:{v[2]}' ]
+        docker_call += [ '--workdir', settings.WORKER_DIRECTORY ]
         docker_image = task.image
         docker_call += [ docker_image ]
         docker_call += [ '--consume' ]
@@ -175,8 +176,8 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             docker_call += [ '--debug' ]
         if config.verbose:
             docker_call += [ '--verbose' ]
-        docker_call += [ os.path.join(WORKER_DIRECTORY, 'task') ]
-        docker_call += [ os.path.join(WORKER_DIRECTORY, 'result') ]
+        docker_call += [ os.path.join(settings.WORKER_DIRECTORY, 'task') ]
+        docker_call += [ os.path.join(settings.WORKER_DIRECTORY, 'result') ]
         logging.debug(f'Docker call : {docker_call}')
 
         pull_image = config.pull
@@ -208,7 +209,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
             if task.limits.gpus is not None and task.limits.gpus > 0:
                 result.stats.update(
                     gpu_stats(
-                        gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                        gpus=limited_gpuset(task.limits.gpus, task.limits.gpus_offset)
                     )
                 )
         except:
@@ -227,7 +228,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 if task.limits.gpus is not None and task.limits.gpus > 0:
                     result.stats.update(
                         gpu_stats(
-                            gpus=limited_gpuset(full_gpuset(), task.limits.gpus, task.limits.gpus_offset)
+                            gpus=limited_gpuset(task.limits.gpus, task.limits.gpus_offset)
                         )
                     )
             except:
@@ -265,7 +266,7 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
                 realpath = os.path.realpath(abspath)
                 if realpath.startswith(os.path.realpath(jailed_result_path)+'/'):
                     relpath = abspath[len(jailed_result_path)+1:]
-                    if relpath != RESULT_SPEC:
+                    if relpath != settings.RESULT_SPEC:
                         destpath = os.path.join(result.path, relpath)
                         os.makedirs(os.path.dirname(destpath), exist_ok=True)
                         shutil.move(realpath, destpath)

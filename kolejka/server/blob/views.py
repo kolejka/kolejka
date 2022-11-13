@@ -1,9 +1,10 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 import hashlib
 import os
 
-from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 

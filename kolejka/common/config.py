@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import argparse
 import configparser
 import json
@@ -7,20 +9,19 @@ import logging
 import os
 
 from .parse import parse_memory, parse_time, parse_bool, parse_int, parse_float, parse_str_list
-from .settings import CONFIG_APP_NAME, CONFIG_APP_AUTHOR, CONFIG_FILE, CONFIG_SERVER, FOREMAN_INTERVAL, FOREMAN_CONCURENCY
 from .tags import foreman_auto_tags
 
 def config_dirs():
     check_dirs = list()
     try:
         import appdirs
-        conf_dirs = appdirs.AppDirs(CONFIG_APP_NAME, CONFIG_APP_AUTHOR, multipath=True)
+        conf_dirs = appdirs.AppDirs(settings.CONFIG_APP_NAME, settings.CONFIG_APP_AUTHOR, multipath=True)
         check_dirs += conf_dirs.user_config_dir.split(':')
-        check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
+        check_dirs += [ os.path.join('/etc', settings.CONFIG_APP_NAME) ]
         check_dirs += conf_dirs.site_config_dir.split(':')
     except:
-        check_dirs += [ os.path.join(os.path.expanduser('~/.config/'), CONFIG_APP_NAME) ]
-        check_dirs += [ os.path.join('/etc', CONFIG_APP_NAME) ]
+        check_dirs += [ os.path.join(os.path.expanduser('~/.config/'), settings.CONFIG_APP_NAME) ]
+        check_dirs += [ os.path.join('/etc', settings.CONFIG_APP_NAME) ]
     return check_dirs
 
 class KolejkaConfig:
@@ -30,7 +31,7 @@ class KolejkaConfig:
         if isinstance(args, argparse.Namespace):
             args = args.__dict__
         args.update(kwargs)
-        args = dict( [ (k,v) for k,v in args.items() if v is not None ] )
+        args = dict( [ (k, v) for k,v in args.items() if v is not None ] )
         self.client = argparse.Namespace()
         self.foreman = argparse.Namespace()
         self.worker = argparse.Namespace()
@@ -41,9 +42,9 @@ class KolejkaConfig:
             self.config_file = args.get('config_file', None)
         if self.config_file is None:
             check_dirs = config_dirs()
-            logging.debug('Looking for configuration in {}'.format(check_dirs))
+            logging.debug(f'Looking for configuration in {check_dirs}')
             for path in check_dirs:
-                check_path = os.path.join(path, CONFIG_FILE)
+                check_path = os.path.join(path, settings.CONFIG_FILE)
                 if os.path.isfile(check_path):
                     self.config_file = check_path
                     break
@@ -57,14 +58,14 @@ class KolejkaConfig:
         default_config.update(args)
         if self.config is None:
             self.config = default_config.get('config', 'client')
-        logging.info('Using config {} in {} {}'.format(self.config, self.config_file, args))
+        logging.info(f'Using config {self.config} in {self.config_file} {args}')
         if self.config is not None and self.config not in raw_config:
-            logging.warning('Config {} not found in config file {}'.format(self.config, self.config_file))
+            logging.warning(f'Config {self.config} not found in config file {self.config_file}')
         client_config = raw_config.get(self.config, dict())
         foreman_config = raw_config.get('foreman', dict())
         worker_config = raw_config.get('worker', dict())
 
-        self.client.__setattr__('server', client_config.get('server', default_config.get('server', None) or CONFIG_SERVER))
+        self.client.__setattr__('server', client_config.get('server', default_config.get('server', None) or settings.CONFIG_SERVER))
         self.client.__setattr__('username', client_config.get('username', default_config.get('username', None)))
         self.client.__setattr__('password', client_config.get('password', default_config.get('password', None)))
         self.client.__setattr__('cpus', parse_int(client_config.get('cpus', default_config.get('cpus', None))))
@@ -80,8 +81,8 @@ class KolejkaConfig:
         self.client.__setattr__('gpu_memory', parse_memory(client_config.get('gpu_memory', default_config.get('gpu_memory', None))))
 
         self.foreman.__setattr__('temp_path', foreman_config.get('temp', default_config.get('temp', None)))
-        self.foreman.__setattr__('interval', parse_float(foreman_config.get('interval', default_config.get('interval', None) or FOREMAN_INTERVAL)))
-        self.foreman.__setattr__('concurency', parse_int(foreman_config.get('concurency', default_config.get('concurency', None) or FOREMAN_CONCURENCY)))
+        self.foreman.__setattr__('interval', parse_float(foreman_config.get('interval', default_config.get('interval', None) or settings.FOREMAN_INTERVAL)))
+        self.foreman.__setattr__('concurency', parse_int(foreman_config.get('concurency', default_config.get('concurency', None) or settings.FOREMAN_CONCURENCY)))
         self.foreman.__setattr__('pull', parse_bool(foreman_config.get('pull', default_config.get('pull', None) or False)))
         self.foreman.__setattr__('cpus', parse_int(foreman_config.get('cpus', default_config.get('cpus', None))))
         self.foreman.__setattr__('memory', parse_memory(foreman_config.get('memory', default_config.get('memory', None))))
@@ -129,15 +130,15 @@ def kolejka_config(config_file=None, config=None, args=None, **kwargs):
 
 def client_config(config_file=None, config=None, args=None, **kwargs):
     _configure(config_file=config_file, config=config, args=args, **kwargs)
-    logging.debug('Client config : {}'.format(_config.client.__dict__))
+    logging.debug(f'Client config : {_config.client.__dict__}')
     return _config.client
 
 def foreman_config(config_file=None, config=None, args=None, **kwargs):
     _configure(config_file=config_file, config=config, args=args, **kwargs)
-    logging.debug('Foreman config : {}'.format(_config.foreman.__dict__))
+    logging.debug(f'Foreman config : {_config.foreman.__dict__}')
     return _config.foreman
         
 def worker_config(config_file=None, config=None, args=None, **kwargs):
     _configure(config_file=config_file, config=config, args=args, **kwargs)
-    logging.debug('Worker config : {}'.format(_config.worker.__dict__))
+    logging.debug(f'Worker config : {_config.worker.__dict__}')
     return _config.worker

@@ -1,6 +1,10 @@
+# vim:ts=4:sts=4:sw=4:expandtab
 """
 Management utility to create users.
 """
+
+from django.conf import settings
+
 import getpass
 import os
 import sys
@@ -10,11 +14,8 @@ from django.contrib.auth.models import Group
 from django.core import exceptions
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DEFAULT_DB_ALIAS
-from django.utils.text import capfirst
-
 
 PASSWORD_FIELD = 'password'
-
 
 class Command(BaseCommand):
     help = 'Used to create a user.'
@@ -27,17 +28,17 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '%s' % self.UserModel.USERNAME_FIELD,
+            self.username_field.name,
             help='Specifies the login for the user.',
         )
         parser.add_argument(
-            '--%s' % PASSWORD_FIELD,
+            PASSWORD_FIELD,
             help='Specifies the password for the user.',
         )
         parser.add_argument(
             '--database',
             default=DEFAULT_DB_ALIAS,
-            help='Specifies the database to use. Default is "default".',
+            help=f'Specifies the database to use. Default is \'{DEFAULT_DB_ALIAS}\'.',
         )
         for field_name in self.UserModel.REQUIRED_FIELDS:
             field = self.UserModel._meta.get_field(field_name)
@@ -70,12 +71,13 @@ class Command(BaseCommand):
             )
 
     def handle(self, *args, **options):
-        username = options[self.UserModel.USERNAME_FIELD]
+        username = options[self.username_field.name]
+        password = options[PASSWORD_FIELD]
         database = options['database']
         user_data = {}
         verbose_field_name = self.username_field.verbose_name
-        user_data[self.UserModel.USERNAME_FIELD] = username
-        user_data[PASSWORD_FIELD] = options[PASSWORD_FIELD]
+        user_data[self.username_field.name] = username
+        user_data[PASSWORD_FIELD] = password
         try:
             for field_name in self.UserModel.REQUIRED_FIELDS:
                 value = options[field_name]
@@ -90,8 +92,6 @@ class Command(BaseCommand):
                 if options[group.name.lower()]:
                     user.groups.add(group)
 
-            if options['verbosity'] >= 1:
-                self.stdout.write("User created successfully.")
         except exceptions.ValidationError as e:
             raise CommandError('; '.join(e.messages))
-
+        return f'User \'{username}\' created successfully.'

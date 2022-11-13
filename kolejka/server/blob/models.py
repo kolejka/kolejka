@@ -1,11 +1,12 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 import datetime
 import os
 import shutil
 import uuid
 
-from django.conf import settings
 from django.db import models
 
 class Blob(models.Model):
@@ -25,7 +26,7 @@ class Blob(models.Model):
 
     @staticmethod
     def blob_store_path(key):
-        subdir = 'blob/{}/{}/{}'.format(key[0:2], key[2:4], key[4:6])
+        subdir = f'blob/{key[0:2]}/{key[2:4]}/{key[4:6]}'
         dirname = os.path.join(settings.BLOB_STORE_PATH, subdir)
         os.makedirs(dirname, exist_ok=True)
         filename = key[6:]
@@ -33,7 +34,7 @@ class Blob(models.Model):
 
     @staticmethod
     def blob_inactive_path(key):
-        subdir = 'inactive/{}/{}/{}'.format(key[0:2], key[2:4], key[4:6])
+        subdir = f'inactive/{key[0:2]}/{key[2:4]}/{key[4:6]}'
         dirname = os.path.join(settings.BLOB_STORE_PATH, subdir)
         os.makedirs(dirname, exist_ok=True)
         filename = key[6:]

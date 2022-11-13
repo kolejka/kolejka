@@ -1,16 +1,18 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 import json
 import logging
 import re
 import subprocess
 import uuid
 
-from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseNotAllowed, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
+from kolejka.common.limits import KolejkaLimits
+from kolejka.common.task import KolejkaTask, KolejkaResult
 from kolejka.server.blob.models import Reference
 from kolejka.server.response import OKResponse, FAILResponse
 
@@ -32,7 +34,7 @@ def task(request, key=''):
                 accept_image = True
                 break
         if not accept_image:
-            return FAILResponse(message='Image {} is not accepted by the server'.format(t.image))
+            return FAILResponse(message=f'Image {t.image} is not accepted by the server')
         local_image = False
         for image_re in settings.LOCAL_IMAGE_NAMES:
             if re.match(image_re, t.image):
@@ -41,17 +43,17 @@ def task(request, key=''):
         t.id = uuid.uuid4().hex
         for k,f in t.files.items():
             if not f.reference:
-                return FAILResponse(message='File {} does not have a reference'.format(k))
+                return FAILResponse(message=f'File {k} does not have a reference')
             f.path = None
         refs = list()
         for k,f in t.files.items():
             try:
                 ref = Reference.objects.get(key = f.reference)
             except Reference.DoesNotExist:
-                return FAILResponse(message='Reference for file {} is unknown'.format(k))
+                return FAILResponse(message=f'Reference for file {k} is unknown')
             if not ref.public:
                 if not request.user.has_perm('blob.view_reference') and request.user != ref.user:
-                    return FAILResponse(message='Reference for file {} is unknown'.format(k))
+                    return FAILResponse(message=f'Reference for file {k} is unknown')
             refs.append(ref)
         limits = KolejkaLimits(
                 cpus=settings.LIMIT_CPUS,
@@ -78,16 +80,16 @@ def task(request, key=''):
                 docker_inspect_run = subprocess.run(['docker', 'image', 'inspect', '--format', '{{json .Size}}', t.image], stdout=subprocess.PIPE, check=True)
                 image_size = int(json.loads(str(docker_inspect_run.stdout, 'utf-8')))
             except:
-                return FAILResponse(message='Image {} could not be pulled'.format(t.image))
+                return FAILResponse(message=f'Image {t.image} could not be pulled')
             if t.limits.image is not None and image_size > t.limits.image:
-                return FAILResponse(message='Image {} exceeds image size limit {}'.format(t.image, t.limits.image))
+                return FAILResponse(message=f'Image {t.image} exceeds image size limit {t.limits.image}')
             image_name = settings.IMAGE_REGISTRY+'/'+settings.IMAGE_REGISTRY_NAME+':'+image_id
             try:
                 subprocess.run(['docker', 'tag', t.image, image_name], check=True)
                 subprocess.run(['docker', 'push', image_name], check=True)
                 subprocess.run(['docker', 'rmi', image_name], check=True)
             except:
-                return FAILResponse(message='Image {} could not be pushed to local repository'.format(t.image))
+                return FAILResponse(message=f'Image {t.image} could not be pushed to local repository')
             t.image = image_name
             t.limits.image = image_size
 
@@ -114,7 +116,7 @@ def task(request, key=''):
         if not request.user.has_perm('task.delete_task') and request.user != task.user:
             return HttpResponseForbidden()
         task.delete()
-        return OKResponse({'deleted' : True})
+        return OKResponse(deleted=True)
     if request.method == 'GET' or request.method == 'HEAD':
         response = dict()
         response['task'] = task.task().dump()
@@ -137,17 +139,17 @@ def result(request, key=''):
             return HttpResponseForbidden()
         for k,f in r.files.items():
             if not f.reference:
-                return FAILResponse(message='File {} does not have a reference'.format(k))
+                return FAILResponse(message=f'File {k} does not have a reference')
             f.path = None
         refs = list()
         for k,f in r.files.items():
             try:
                 ref = Reference.objects.get(key = f.reference)
             except Reference.DoesNotExist:
-                return FAILResponse(message='Reference for file {} is unknown'.format(k))
+                return FAILResponse(message=f'Reference for file {k} is unknown')
             if not ref.public:
                 if request.user != ref.user:
-                    return FAILResponse(message='Reference for file {} belongs to a different user'.format(k))
+                    return FAILResponse(message=f'Reference for file {k} belongs to a different user')
             refs.append(ref)
         result,created = models.Result.objects.get_or_create(task=task, user=request.user, description=json.dumps(r.dump()))
         result.save()
@@ -164,7 +166,7 @@ def result(request, key=''):
         task = models.Task.objects.get(key=key)
         result = models.Result.objects.get(task=task)
     except models.Task.DoesNotExist:
-        return FAILResponse(message='Task {} is unknown'.format(key))
+        return FAILResponse(message=f'Task {key} is unknown')
     except models.Result.DoesNotExist:
         return HttpResponseNotFound()
     if not request.user.has_perm('task.view_result') and request.user != task.user:
@@ -177,7 +179,7 @@ def result(request, key=''):
         if not request.user.has_perm('task.delete_result') and request.user != task.user:
             return HttpResponseForbidden()
         result.delete()
-        return OKResponse({'deleted' : True})
+        return OKResponse(deleted=True)
     if request.method == 'GET' or request.method == 'HEAD':
         response = dict()
         response['result'] = result.result().dump()

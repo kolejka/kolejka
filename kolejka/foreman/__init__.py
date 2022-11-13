@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
 # vim:ts=4:sts=4:sw=4:expandtab
+
+from kolejka.common import settings
 
 def main():
     import argparse

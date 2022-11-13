@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import cgi
 import json
 import logging
@@ -8,7 +10,6 @@ from multiprocessing import Process
 import pickle
 import subprocess
 
-from kolejka.common import settings
 from kolejka.common import HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 

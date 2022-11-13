@@ -1,46 +1,42 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import re
 
-from kolejka.common.limits import KolejkaStats
-
-def normalize_name(name: str) -> str:
-    return ' '.join([part for part in name.lower().split(' ') if part and (part not in ['nvidia']) and not re.match(r'[0-9]+[kmgt]b', part)])
+from .limits import KolejkaStats
+from .nvidia import NvidiaSMILog
 
 def gpu_stats(gpus: list = None):
+    if gpus is not None:
+        gpus = [ int(gpu) for gpu in gpus ]
     stats = KolejkaStats()
-    stats.load({ 'gpus' : {} })
-    try:
-        import gpustat
-        query = gpustat.GPUStatCollection.new_query()
-        stats.load({ 'gpus' : {
-            str(index) : {
-                'name': gpu.name,
-                'id': normalize_name(gpu.name),
-                'memory_total': gpu.memory_total * 1024 * 1024,
-                'memory_usage': gpu.memory_total * 1024 * 1024 - gpu.memory_free * 1024 * 1024,
-                'temperature': gpu.temperature,
-                'utilization': gpu.utilization
-            } for index, gpu in enumerate(query.gpus) if gpus is None or str(index) in gpus
-        }})
-    except:
-        pass
+    smilog = NvidiaSMILog.from_exec()
+    stats.load({ 'gpus' : {
+        index : {
+            'name': gpu.name,
+            'id': gpu.uuid,
+            'memory_total': gpu.memory_total,
+            'memory_usage': gpu.memory_total - gpu.memory_free,
+            'temperature': gpu.temperature,
+            'utilization': gpu.utilization,
+        } for index, gpu in enumerate(smilog.gpus) if gpus is None or index in gpus
+    }})
     return stats
 
 def full_gpuset():
-    gpuset = list()
-    try:
-        import gpustat
-        query = gpustat.GPUStatCollection.new_query()
-        gpuset = list(range(len(query.gpus)))
-    except:
-        pass
-    return gpuset
+    return list(gpu_stats().gpus.keys())
 
-def limited_gpuset(full, gpus, gpus_offset):
+def limited_gpuset(gpus, gpus_offset):
+    gpuset = list()
     if gpus_offset is None:
         gpus_offset = 0
+    if not gpus:
+        return gpuset
+    full = full_gpuset()
+    if not len(full):
+        return gpuset
 
-    return [
-        str((gpus_offset + _index) % len(full)) for _index in range(gpus)
-    ]
+    return list(set([
+        full[(gpus_offset + _index) % len(full)] for _index in range(gpus)
+    ]))

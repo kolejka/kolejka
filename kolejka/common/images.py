@@ -1,9 +1,13 @@
+# vim:ts=4:sts=4:sw=4:expandtab
+
+from kolejka.common import settings
+
 import os
 import json
 import subprocess
 from pathlib import Path
 
-from kolejka.common import parse_memory
+from .parse import parse_memory
 
 def check_docker_image_existance(image: str) -> bool:
     docker_inspect_run = subprocess.run(

@@ -1,8 +1,9 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 import json
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import F, Count
@@ -10,7 +11,7 @@ from django.http import HttpResponse, JsonResponse, HttpResponseForbidden, HttpR
 import django.utils.timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from kolejka.common import KolejkaLimits
+from kolejka.common.limits import KolejkaLimits
 from kolejka.common.parse import parse_time
 from kolejka.server.response import OKResponse, FAILResponse
 from kolejka.server.task.models import Task, Result

@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import argparse
 import copy
 import datetime
@@ -41,7 +43,7 @@ class TimeAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         self.type = datetime.timedelta
         if nargs is not None:
-            raise ValueError("nargs not allowed")
+            raise ValueError('nargs not allowed')
         super().__init__(option_strings, dest, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, parse_time(values))
@@ -72,7 +74,7 @@ class MemoryAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         self.type = int
         if nargs is not None:
-            raise ValueError("nargs not allowed")
+            raise ValueError('nargs not allowed')
         super().__init__(option_strings, dest, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, parse_memory(values))
@@ -110,7 +112,7 @@ def json_dict_load(data):
     elif isinstance(data, str):
         res = json.loads(data)
     elif isinstance(data, bytes):
-        res = json.loads(str(data, "utf-8"))
+        res = json.loads(str(data, 'utf-8'))
     else:
         res = json.load(data)
     assert isinstance(res, dict)
@@ -125,7 +127,7 @@ def json_list_load(data):
     elif isinstance(data, str):
         res = json.loads(data)
     elif isinstance(data, bytes):
-        res = json.loads(str(data, "utf-8"))
+        res = json.loads(str(data, 'utf-8'))
     else:
         res = json.load(data)
     assert isinstance(res, list)

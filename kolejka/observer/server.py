@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
 # vim:ts=4:sts=4:sw=4:expandtab
+
+from kolejka.common import settings
 
 import cgi
 import datetime
@@ -17,7 +20,6 @@ import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
-from kolejka.common.settings import OBSERVER_CGROUPS, OBSERVER_PID_FILE, OBSERVER_SERVERSTRING
 from kolejka.common import HTTPUnixServer, HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 from kolejka.common import ControlGroupSystem
@@ -105,10 +107,10 @@ class Session:
         pid_groups = self.system.pid_groups(pid)
         self.parent_groups = dict()
         self.groups = dict()
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             self.parent_groups[group] = pid_groups[group]
             self.groups[group] = os.path.join(self.parent_groups[group], self.group_name)
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             if group == 'memory':
                 with open(os.path.join(os.path.dirname(self.group_path(group)), 'memory.use_hierarchy')) as f:
                     use_hierarchy = bool(f.readline().strip())
@@ -125,9 +127,9 @@ class Session:
 
     def attach(self, pid):
         pid_groups = self.system.pid_groups(pid)
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             assert os.path.join(pid_groups[group], self.group_name) == self.groups[group]
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             tasks_path = self.group_path(group, filename='tasks')
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
@@ -136,9 +138,9 @@ class Session:
 
     def detach(self, pid):
         pid_groups = self.system.pid_groups(pid)
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             assert os.path.join(pid_groups[group], self.group_name) == self.groups[group] or pid_groups[group] == self.groups[group]
-        for group in OBSERVER_CGROUPS:
+        for group in settings.OBSERVER_CGROUPS:
             tasks_path = self.parent_group_path(group, filename='tasks')
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
@@ -333,7 +335,7 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
     def session_registry(self):
         return self.server.session_registry
     def version_string(self):
-        return OBSERVER_SERVERSTRING
+        return settings.OBSERVER_SERVERSTRING
 
     def send_json(self, result=None, code=200, message=None):
         try:
@@ -577,11 +579,10 @@ class KolejkaObserverServer(ObserverServer):
         return super().__exit__(*args, **kwargs)
 
 def config_parser(parser):
-    from kolejka.common.settings import OBSERVER_SOCKET
     from kolejka.observer import KolejkaObserverServer
-    parser.add_argument("-s", "--socket", type=str, default=OBSERVER_SOCKET, help='listen on socket')
-    parser.add_argument("--detach", action="store_true", default=False, help='run in background')
-    parser.add_argument("--pid-file", type=str, default=OBSERVER_PID_FILE, help='pid file')
+    parser.add_argument('-s', '--socket', type=str, default=settings.OBSERVER_SOCKET, help='listen on socket')
+    parser.add_argument('--detach', action='store_true', default=False, help='run in background')
+    parser.add_argument('--pid-file', type=str, default=settings.OBSERVER_PID_FILE, help='pid file')
     def execute(args):
         with KolejkaObserverServer(args.socket) as server:
             def action():
@@ -607,8 +608,8 @@ def main():
         pass
 
     parser = argparse.ArgumentParser(description='KOLEJKA observer')
-    parser.add_argument("-v", "--verbose", action="store_true", default=False, help='show more info')
-    parser.add_argument("-d", "--debug", action="store_true", default=False, help='show debug info')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help='show more info')
+    parser.add_argument('-d', '--debug', action='store_true', default=False, help='show debug info')
     config_parser(parser)
     args = parser.parse_args()
     level=logging.WARNING

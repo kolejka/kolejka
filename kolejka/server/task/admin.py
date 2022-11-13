@@ -1,13 +1,15 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 from django.contrib import admin
 
-from .models import *
+from . import models
 
-@admin.register(Task)
+@admin.register(models.Task)
 class TaskAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Result)
+@admin.register(models.Result)
 class ResultAdmin(admin.ModelAdmin):
     pass

@@ -1,5 +1,10 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+import os
+import sys
+assert sys.version_info >= (3, 7)
+sys.path = [ path for path in sys.path if not os.path.isfile(os.path.join(path, '__nonpath__.py')) ]
+
 CONFIG_APP_NAME = 'kolejka'
 
 CONFIG_APP_AUTHOR = 'kolejka'
@@ -10,11 +15,11 @@ CONFIG_SERVER = 'https://kolejka.matinf.uj.edu.pl/kolejka'
 
 OBSERVER_CGROUPS = [ 'memory', 'cpuacct', 'pids', 'perf_event', 'blkio', 'cpuset', 'freezer' ]
 
-OBSERVER_PID_FILE = "/var/run/kolejka/observer/pid"
+OBSERVER_PID_FILE = '/var/run/kolejka/observer/pid'
 
 OBSERVER_SERVERSTRING = 'Kolejka Observer Daemon'
 
-OBSERVER_SOCKET = "/var/run/kolejka/observer/socket"
+OBSERVER_SOCKET = '/var/run/kolejka/observer/socket'
 
 TASK_SPEC = 'kolejka_task.json'
 

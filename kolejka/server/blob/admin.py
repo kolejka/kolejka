@@ -1,13 +1,15 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 from django.contrib import admin
 
-from .models import *
+from . import models
 
-@admin.register(Blob)
+@admin.register(models.Blob)
 class BlobAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Reference)
+@admin.register(models.Reference)
 class ReferenceAdmin(admin.ModelAdmin):
     pass

@@ -1,25 +1,22 @@
+# vim:ts=4:sts=4:sw=4:expandtab
 """
-Management utility to create users.
+Management utility to change passwords.
 """
+
+from django.conf import settings
+
 import getpass
 import os
 import sys
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
-from django.core import exceptions
 from django.core.management.base import BaseCommand, CommandError
 from django.db import DEFAULT_DB_ALIAS
-from django.utils.text import capfirst
-
 
 PASSWORD_FIELD = 'password'
 
-
 class Command(BaseCommand):
-    help = 'Used to change password.'
-    requires_migrations_checks = True
-    requires_system_checks = False
+    help = 'Used to change a password.'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,30 +25,30 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '%s' % self.UserModel.USERNAME_FIELD,
+            self.username_field.name,
             help='Specifies the login for the user.',
         )
         parser.add_argument(
-            '%s' % PASSWORD_FIELD,
+            PASSWORD_FIELD,
             help='Specifies the password for the user.',
         )
         parser.add_argument(
             '--database',
             default=DEFAULT_DB_ALIAS,
-            help='Specifies the database to use. Default is "default".',
+            help=f'Specifies the database to use. Default is \'{DEFAULT_DB_ALIAS}\'.',
         )
 
     def handle(self, *args, **options):
-        username = options[self.UserModel.USERNAME_FIELD]
+        username = options[self.username_field.name]
         password = options[PASSWORD_FIELD]
         database = options['database']
         try:
-            u = self.UserModel._default_manager.using(options['database']).get(**{
-                self.UserModel.USERNAME_FIELD: username
+            u = self.UserModel._default_manager.using(database).get(**{
+                self.username_field.name: username
             })
         except self.UserModel.DoesNotExist:
-            raise CommandError("user '%s' does not exist" % username)
+            raise CommandError(f'user \'{username}\' does not exist')
         u.set_password(password)
         u.save()
 
-        return "Password changed successfully for user '%s'" % u
+        return f'Password changed successfully for user \'{username}\'.'

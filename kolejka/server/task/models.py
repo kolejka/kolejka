@@ -1,13 +1,14 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from django.conf import settings
+
 import datetime
 import os
 import uuid
 
-from django.conf import settings
 from django.db import models
 
-from kolejka.common import KolejkaTask, KolejkaResult
+from kolejka.common.task import KolejkaTask, KolejkaResult
 from kolejka.server.blob.models import Reference
 
 class Task(models.Model):

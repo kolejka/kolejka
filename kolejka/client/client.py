@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import hashlib
 import json
 import logging
@@ -71,8 +73,11 @@ class KolejkaClient:
         if response.status_code != requests.codes.ok:
             response.close()
             raise KolejkaClientRemoteError()
-        if response.headers.get('content-type','') == 'application/json':
-            j = response.json()
+        if response.headers.get('content-type', '') == 'application/json':
+            try:
+                j = response.json()
+            except requests.exceptions.InvalidJSONError:
+                raise KolejkaClientRemoteError()
             if isinstance(j, dict) and 'status' in j:
                 if j['status'] != 'OK':
                     if 'message' in j:
@@ -129,13 +134,13 @@ class KolejkaClient:
         hasher = hashlib.new(self.config.blob_hash_algorithm)
         with open(blob_path, 'rb') as blob_file:
             while True:
-                buf = blob_file.read(8192)
+                buf = blob_file.read(65536)
                 if len(buf) == 0:
                     break
                 hasher.update(buf)
             hash = hasher.hexdigest()
             try:
-                response = self.post('/blob/blob/{}/'.format(hash), data={})
+                response = self.post(f'/blob/blob/{hash}/')
                 reference = response.json()['reference']
                 return reference
             except KolejkaClientObjectNotFoundError:
@@ -148,9 +153,9 @@ class KolejkaClient:
     def blob_get(self, blob_path, blob_reference=None, blob_hash=None):
         assert blob_reference or blob_hash
         if blob_reference is not None:
-            response = self.get('/blob/reference/{}/'.format(blob_reference), stream=True)
+            response = self.get(f'/blob/reference/{blob_reference}/', stream=True)
         elif blob_hash is not None:
-            response = self.get('/blob/blob/{}/'.format(blob_hash), stream=True)
+            response = self.get(f'/blob/blob/{blob_hash}/', stream=True)
         dir_path = os.path.dirname(os.path.abspath(blob_path))
         os.makedirs(dir_path, exist_ok=True)
         try:
@@ -166,18 +171,19 @@ class KolejkaClient:
         assert blob_reference or blob_hash
         try:
             if blob_reference is not None:
-                response = self.delete('/blob/reference/{}/'.format(blob_reference))
+                response = self.delete(f'/blob/reference/{blob_reference}/')
             elif blob_hash is not None:
-                response = self.delete('/blob/blob/{}/'.format(blob_hash))
+                response = self.delete(f'/blob/blob/{blob_hash}/')
         except KolejkaClientObjectNotFoundError:
             pass
 
     def blob_check(self, blob_reference=None, blob_hash=None):
+        assert blob_reference or blob_hash
         try:
             if blob_reference is not None:
-                response = self.head('/blob/reference/{}/'.format(blob_reference), stream=True)
+                response = self.head(f'/blob/reference/{blob_reference}/', stream=True)
             elif blob_hash is not None:
-                response = self.head('/blob/blob/{}/'.format(blob_hash), stream=True)
+                response = self.head(f'/blob/blob/{blob_hash}/', stream=True)
             return True
         except KolejkaClientObjectNotFoundError:
             return False
@@ -212,7 +218,7 @@ class KolejkaClient:
     def task_get(self, task_key, task_path):
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
-        response = self.get('/task/task/{}/'.format(task_key))
+        response = self.get(f'/task/task/{task_key}/')
         os.makedirs(task_path, exist_ok=True)
         task = KolejkaTask(task_path)
         task.load(response.json()['task'])
@@ -226,7 +232,7 @@ class KolejkaClient:
         if isinstance(task_key, KolejkaTask):
             task_key = task_key.id
         try:
-            response = self.delete('/task/task/{}/'.format(task_key))
+            response = self.delete(f'/task/task/{task_key}/')
         except KolejkaClientObjectNotFoundError:
             pass
 
@@ -243,7 +249,7 @@ class KolejkaClient:
         return result
 
     def result_get(self, task_key, result_path):
-        response = self.get('/task/result/{}/'.format(task_key))
+        response = self.get(f'/task/result/{task_key}/')
         os.makedirs(result_path, exist_ok=True)
         result = KolejkaResult(result_path)
         desc = response.json()['result']
@@ -260,14 +266,18 @@ class KolejkaClient:
         if isinstance(result_key, KolejkaResult):
             result_key = result_key.id
         try:
-            response = self.delete('/task/result/{}/'.format(result_key))
+            response = self.delete(f'/task/result/{result_key}/')
         except KolejkaClientObjectNotFoundError:
             pass
 
     def dequeue(self, concurency, limits, tags):
         if not self.instance_session:
             self.login() 
-        response = self.post('/queue/dequeue/', data=json.dumps({'concurency' : concurency, 'limits' : limits.dump(), 'tags' : tags}))
+        response = self.post('/queue/dequeue/', data=json.dumps({
+                'concurency' : concurency,
+                'limits' : limits.dump(),
+                'tags' : tags,
+            }))
         ts = response.json()['tasks']
         tasks = list()
         for t in ts:
@@ -409,7 +419,7 @@ def config_parser_execute(parser):
     parser.add_argument('--image', action=MemoryAction, help='image size limit')
     parser.add_argument('--workspace', action=MemoryAction, help='workspace size limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
-    parser.add_argument('--network',type=bool, help='allow netowrking')
+    parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
     parser.add_argument('--gpu-memory', type=MemoryAction, help='gpu memory limit')
     def execute(args):

@@ -1,8 +1,10 @@
 # vim:ts=4:sts=4:sw=4:expandtab
+    
+from kolejka.common.settings import *
 
 import os
 
-KOLEJKA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KOLEJKA_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 PROJECT_DIR = os.path.dirname(KOLEJKA_DIR)
 
 SECRET_KEY = '__CHANGE_THIS_VALUE__'
@@ -67,7 +69,6 @@ DATABASES = {
     }
 }
 
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -82,7 +83,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 LANGUAGE_CODE = 'en-us'
 

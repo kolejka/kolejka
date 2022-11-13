@@ -1,11 +1,12 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import copy
 import glob
 import json
 import os
 
-from .settings import TASK_SPEC, RESULT_SPEC
 from .parse import parse_int, parse_str, parse_bool
 from .parse import json_dict_load, json_list_load
 from .limits import KolejkaLimits, KolejkaStats
@@ -172,7 +173,7 @@ class KolejkaTask():
     @property
     def spec_path(self):
         if self.path is not None:
-            return os.path.join(self.path, TASK_SPEC)
+            return os.path.join(self.path, settings.TASK_SPEC)
 
     def load(self, data, **kwargs):
         args = json_dict_load(data)
@@ -235,7 +236,7 @@ class KolejkaResult():
     @property
     def spec_path(self):
         if self.path is not None:
-            return os.path.join(self.path, RESULT_SPEC)
+            return os.path.join(self.path, settings.RESULT_SPEC)
 
     def load(self, data, **kwargs):
         args = json_dict_load(data)

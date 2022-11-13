@@ -1,11 +1,13 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import os
 import re
 import sys
 from collections import Counter
 
-from kolejka.common.gpu import gpu_stats
+from .gpu import gpu_stats
 
 def parse_cpu_name(name):
     name = re.sub(r'@.*', '', name.lower())
@@ -33,6 +35,9 @@ def parse_cpu_name(name):
     name = [ n for n in name if not re.match('eight-?core.*', n) ]
     name = ' '.join(name)
     return name
+
+def parse_gpu_name(name):
+    return ' '.join([part for part in name.lower().split(' ') if part and (part not in ['nvidia']) and not re.match(r'[0-9]+[kmgt]b', part)])
 
 def cpu_tags():
     count = 0
@@ -67,13 +72,13 @@ def cpu_tags():
 def gpu_tags():
     tags = set()
     counts_per_model = Counter()
-    stats = gpu_stats().dump().get('gpus', {}).items()
+    stats = gpu_stats().gpus.items()
 
     if len(stats) > 0:
         tags.add('gpu:nvidia')
 
     for gpu_id, gpu_params in stats:
-        tags.add('gpu:'+gpu_params.get('id'))
+        tags.add('gpu:'+parse_gpu_name(gpu_params.name))
 
     return tags
 

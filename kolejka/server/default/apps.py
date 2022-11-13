@@ -1,3 +1,7 @@
+# vim:ts=4:sts=4:sw=4:expandtab
+
+from django.conf import settings
+
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 

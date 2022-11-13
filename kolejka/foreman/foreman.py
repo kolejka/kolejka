@@ -1,5 +1,7 @@
 # vim:ts=4:sts=4:sw=4:expandtab
 
+from kolejka.common import settings
+
 import copy
 import datetime
 import dateutil.parser
@@ -122,7 +124,7 @@ def foreman():
         elif v.memory_total is not None:
             limits.gpu_memory = min(limits.gpu_memory, v.memory_total)
     client = KolejkaClient()
-    logging.debug('Foreman tags: {}, limits: {}'.format(config.tags, limits.dump()))
+    logging.debug(f'Foreman tags: {config.tags}, limits: {limits.dump()}')
     while True:
         try:
             tasks = client.dequeue(config.concurency, limits, config.tags)
