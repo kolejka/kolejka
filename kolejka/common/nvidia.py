@@ -65,10 +65,10 @@ class NvidiaSMILog:
         try:
             result = subprocess.run(['nvidia-smi', '-q', '-x'], capture_output=True)
         except OSError:
-            logging.warning('Failed to launch nvidia-smi. Returning empty log.')
+            logging.info('Failed to launch nvidia-smi. Returning empty log.')
             return cls()
         if result.returncode != 0:
-            logging.warning('Launch of nvidia-smi failed. Returning empty log.')
+            logging.info('Launch of nvidia-smi failed. Returning empty log.')
             return cls()
         return cls.from_string(str(result.stdout, 'utf-8'))
 
