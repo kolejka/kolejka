@@ -11,6 +11,7 @@ import logging
 import math
 from multiprocessing import Process
 import os
+import pathlib
 import random
 import shutil
 import subprocess
@@ -35,6 +36,10 @@ from kolejka.common.images import (
 )
 from kolejka.worker.stage0 import stage0
 from kolejka.worker.volume import check_python_volume
+
+def system_reset():
+    with pathlib.Path('/proc/sysrq-trigger').open('wb') as sysrq_trigger:
+        sysrq_trigger.write(b'b')
 
 def manage_images(pull, size, necessary_images, priority_images):
     necessary_size = sum(necessary_images.values(), 0)
@@ -73,7 +78,7 @@ def manage_images(pull, size, necessary_images, priority_images):
         image_size = get_docker_image_size(image)
         assert image_size <= size
 
-def foreman_single(temp_path, task):
+def foreman_single(temp_path, task, task_timeout=-1):
     config = foreman_config()
     with tempfile.TemporaryDirectory(temp_path) as jailed_path:
         if task.limits.workspace is not None:
@@ -91,10 +96,17 @@ def foreman_single(temp_path, task):
             for k,f in task.files.items():
                 f.path = k
             task.commit()
-            stage0(task.path, result_path, temp_path=temp_path, consume_task_folder=True)
-            result = KolejkaResult(result_path)
-            result.tags = config.tags
-            client.result_put(result)
+            stage0_timeout = task_timeout
+            stage0_run = Thread(target=stage0, args=(task.path, result_path), kwargs={'temp_path':temp_path, 'consume_task_folder':True})
+            stage0_run.start()
+            stage0_run.join(timeout=stage0_timeout)
+            if stage0_run.is_alive():
+                #TODO: Report problem to kolejka-server?
+                system_reset()
+            else:
+                result = KolejkaResult(result_path)
+                result.tags = config.tags
+                client.result_put(result)
         except:
             traceback.print_exc()
         finally:
@@ -136,14 +148,15 @@ def foreman():
                     resources = KolejkaLimits()
                     resources.copy(limits)
                     image_usage = dict()
-                    processes = list()
+                    children_args = list()
                     cpus_offset = 0
                     gpus_offset = 0
+                    tasks_timeout = None
 
                     for task in tasks:
-                        if len(processes) >= config.concurency:
+                        if len(children_args) >= config.concurency:
                             break
-                        if task.exclusive and len(processes) > 0:
+                        if task.exclusive and len(children_args) > 0:
                             break
                         task.limits.update(limits)
                         task.limits.cpus_offset = cpus_offset
@@ -171,8 +184,7 @@ def foreman():
                         if resources.workspace is not None and task.limits.workspace > resources.workspace:
                             ok = False
                         if ok:
-                            proc = Process(target=foreman_single, args=(config.temp_path, task))
-                            processes.append(proc)
+                            children_args.append([config.temp_path, task])
                             cpus_offset += task.limits.cpus
                             if resources.cpus is not None:
                                 resources.cpus -= task.limits.cpus
@@ -192,6 +204,13 @@ def foreman():
                                 image_usage[task.image] = max(image_usage.get(task.image, 0), task.limits.image)
                             if resources.workspace is not None:
                                 resources.workspace -= task.limits.workspace
+                            if task.limits.time is None:
+                                tasks_timeout = -1
+                            else:
+                                if tasks_timeout is None:
+                                    tasks_timeout = task.limits.time.total_seconds()
+                                else:
+                                    tasks_timeout = max(task.limits.time.total_seconds(), tasks_timeout)
                             tasks = tasks[1:]
                             if task.exclusive:
                                 break
@@ -204,10 +223,16 @@ def foreman():
                             image_usage,
                             [task.image for task in tasks]
                         )
-                    for proc in processes:
-                        proc.start()
-                    for proc in processes:
-                        proc.join()
+                    if tasks_timeout is not None and tasks_timeout >= 0:
+                        tasks_timeout = 10 + 2*tasks_timeout
+                    children = list()
+                    for args in children_args:
+                        args.append(tasks_timeout)
+                        process = Process(target=foreman_single, args=args)
+                        children.append(process)
+                        process.start()
+                    for process in children:
+                        process.join()
         except KeyboardInterrupt:
             raise
         except:
