@@ -22,6 +22,5 @@ class Command(BaseCommand):
             filter['assignee__isnull'] = not options['assigned']
         if options['resolved'] is not None:
             filter['result__isnull'] = not options['resolved']
-        print(options, filter)
         for task in Task.objects.filter(**filter):
             self.stdout.write(f'{task.key}\n')

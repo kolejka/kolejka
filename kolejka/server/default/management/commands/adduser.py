@@ -45,29 +45,20 @@ class Command(BaseCommand):
             if field.many_to_many:
                 if field.remote_field.through and not field.remote_field.through._meta.auto_created:
                     raise CommandError(
-                        "Required field '%s' specifies a many-to-many "
-                        "relation through model, which is not supported."
-                        % field_name
+                        f'Required field \'{field_name}\' specifies a many-to-many relation through model, which is not supported.'
                     )
                 else:
                     parser.add_argument(
-                        '--%s' % field_name, action='append', required=True,
-                        help=(
-                            'Specifies the %s for the user. Can be used '
-                            'multiple times.' % field_name,
-                        ),
+                        f'--{field_name}', action='append', required=True,
+                        help=f'Specifies the {field_name} for the user. Can be used multiple times.',
                     )
             else:
                 parser.add_argument(
-                    '--%s' % field_name, required=True,
-                    help='Specifies the %s for the user.' % field_name,
+                    f'--{field_name}', required=True, help=f'Specifies the {field_name} for the user.',
                 )
         for group_name in [group.name.lower() for group in Group.objects.all()]:
             parser.add_argument(
-                '--%s' % group_name, action='store_true',
-                help=(
-                    'Add user to group %s.' % group_name,
-                ),
+                f'--{group_name}', action='store_true', help=f'Add user to group {group_name}.',
             )
 
     def handle(self, *args, **options):
@@ -82,7 +73,7 @@ class Command(BaseCommand):
             for field_name in self.UserModel.REQUIRED_FIELDS:
                 value = options[field_name]
                 if not value:
-                    raise CommandError('You must use --%s' % field_name)
+                    raise CommandError(f'You must use --{field_name}.')
                 field = self.UserModel._meta.get_field(field_name)
                 user_data[field_name] = field.clean(value, None)
 
