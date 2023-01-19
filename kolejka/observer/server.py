@@ -121,7 +121,7 @@ class Session:
                     with open(os.path.join(os.path.dirname(self.group_path(group)), inherit)) as f:
                         with open(os.path.join(self.group_path(group), inherit), 'w') as t:
                             t.write(f.read())
-        logging.debug('Created session %s with paths [%s] for pid %s'%(self.id, ','.join(self.groups.values()), self.creator_pid))
+        logging.debug(f'Created session {self.id} with paths {self.groups.values()} for pid {self.creator_pid}')
         self.start_time = time.perf_counter()
         self.close_time = None
 
@@ -134,7 +134,7 @@ class Session:
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
                 tasks_file.write(str(pid))
-        logging.debug('Attached process %s to session %s'%(str(pid), self.id))
+        logging.debug(f'Attached process {pid} to session {self.id}')
 
     def detach(self, pid):
         pid_groups = self.system.pid_groups(pid)
@@ -145,7 +145,7 @@ class Session:
             assert os.path.isfile(tasks_path)
             with open(tasks_path, 'w') as tasks_file:
                 tasks_file.write(str(pid))
-        logging.debug('Detached process %s from session %s'%(str(pid), self.id))
+        logging.debug(f'Detached process {pid} from session {self.id}')
 
     def limits(self, limits=KolejkaLimits()):
         if limits.memory is not None:
@@ -153,17 +153,17 @@ class Session:
             limit_file = self.group_path('memory', filename='memory.limit_in_bytes')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.memory))
-            logging.debug('Limited session %s memory to %s bytes'%(self.id, limits.memory))
+            logging.debug(f'Limited session {self.id} memory to {limits.memory} bytes')
             if limits.swap is not None:
                 assert 'memory' in self.groups
                 limit_file = self.group_path('memory', filename='memory.memsw.limit_in_bytes')
                 with open(limit_file, 'w') as f:
                     f.write(str(limits.memory+limits.swap))
-                logging.debug('Limited session %s swap to %s bytes'%(self.id, limits.swap))
+                logging.debug(f'Limited session {self.id} swap to {limits.swap} bytes')
         if limits.cpus is not None:
             assert 'cpuset' in self.groups
             cpuset_cpus = self.available_cpus()
-            logging.debug('Available cpus: %s', ','.join([str(c) for c in cpuset_cpus]))
+            logging.debug(f'Available cpus: {cpuset_cpus}')
             cpus_offset = limits.cpus_offset or 0
             if len(cpuset_cpus) < cpus_offset + limits.cpus:
                 cpus_offset = 0
@@ -172,16 +172,16 @@ class Session:
             limit_file = self.group_path('cpuset', filename='cpuset.cpus')
             with open(limit_file, 'w') as f:
                 f.write(','.join([str(c) for c in cpuset_cpus]))
-            logging.debug('Limited session %s cpus to %s'%(self.id, ','.join([str(c) for c in cpuset_cpus])))
+            logging.debug(f'Limited session {self.id} cpus to {cpuset_cpus}')
         if limits.pids is not None:
             assert 'pids' in self.groups
             limit_file = self.group_path('pids', filename='pids.max')
             with open(limit_file, 'w') as f:
                 f.write(str(limits.pids))
-            logging.debug('Limited session %s pids to %s'%(self.id, limits.pids))
+            logging.debug(f'Limited session {self.id} pids to {limits.pids}')
         if limits.time is not None:
             self.close_time = self.start_time + limits.time.total_seconds()
-            logging.debug('Limited session %s time to %f'%(self.id, limits.time.total_seconds()))
+            logging.debug(f'Limited session {self.id} time to {limits.time.total_seconds()}')
         else:
             self.close_time = None
 
@@ -194,7 +194,7 @@ class Session:
         state_file = self.group_path('freezer', filename='freezer.state')
         with open(state_file, 'w') as f:
             f.write(command)
-        logging.debug('%s session %s'%(command, self.id))
+        logging.debug(f'{command} session {self.id}')
         if freeze:
             while True:
                 with open(state_file) as f:
@@ -225,7 +225,7 @@ class Session:
                 os.kill(int(pid), signal.SIGKILL)
             except OSError:
                 pass
-        logging.debug('KILLED session %s'%(self.id))
+        logging.debug(f'KILLED session {self.id}')
 
         self.freeze(freeze=state)
 
@@ -240,7 +240,7 @@ class Session:
             pass
         time.sleep(0.1) #TODO: Allow thawed killed processes to die. HOW?
         self.system.groups_close(self.groups)
-        logging.debug('CLOSED session %s'%(self.id))
+        logging.debug(f'CLOSED session {self.id}')
             
 class SessionRegistry:
     def __init__(self):

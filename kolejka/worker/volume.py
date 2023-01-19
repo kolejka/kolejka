@@ -40,7 +40,7 @@ def check_python_volume():
         state = json.loads(str(docker_run.stdout, 'utf-8'))
         if state == settings.WORKER_PYTHON_VOLUME:
             return
-        print(state)
+        logging.error(f'Docker volume {settings.WORKER_PYTHON_VOLUME} not found: {state}')
     except:
         pass
     create_python_volume()
