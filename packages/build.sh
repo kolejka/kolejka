@@ -24,4 +24,6 @@ find Kolejka*/deb_dist -type f -name "*_source.changes" -exec cp -a {} dist ";"
 find Kolejka*/deb_dist -type f -name "*_source.buildinfo" -exec cp -a {} dist ";"
 find dist -type f -name "*_source.changes" -exec debsign --no-conf "-mkolejka.matinf.uj.edu.pl <kolejka@matinf.uj.edu.pl>" --re-sign -S {} ";"
 
+./wheel_executable.py --wheel dist/KolejkaClient-*.whl --wheel dist/KolejkaCommon-*.whl --main kolejka.client.main  dist/kolejka-client
+
 popd >/dev/null 2>&1
