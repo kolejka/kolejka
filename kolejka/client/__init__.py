@@ -12,7 +12,7 @@ def main():
     try:
         import setproctitle
         setproctitle.setproctitle('kolejka-client')
-    except:
+    except ImportError:
         pass
 
     parser = argparse.ArgumentParser(description='KOLEJKA client')

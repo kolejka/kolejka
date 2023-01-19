@@ -11,7 +11,7 @@ def main():
     try:
         import setproctitle
         setproctitle.setproctitle('kolejka-foreman')
-    except:
+    except ImportError:
         pass
 
     parser = argparse.ArgumentParser(description='KOLEJKA foreman')
