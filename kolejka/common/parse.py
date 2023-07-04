@@ -97,6 +97,30 @@ def parse_str(x):
     if x is not None:
         return str(x)
 
+def parse_bigint(x):
+    if x is not None:
+        return int(round(parse_float_with_modifiers(x, {
+            'k' : 1000,
+            'K' : 1000,
+            'm' : 1000**2,
+            'M' : 1000**2,
+            'g' : 1000**3,
+            'G' : 1000**3,
+            't' : 1000**4,
+            'T' : 1000**4,
+            'p' : 1000**5,
+            'P' : 1000**5,
+        })))
+
+class BigIntAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        self.type = int
+        if nargs is not None:
+            raise ValueError('nargs not allowed')
+        super().__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, parse_bigint(values))
+
 def parse_str_list(x, separator=','):
     if x is not None:
         if isinstance(x, list):

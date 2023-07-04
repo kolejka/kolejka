@@ -67,6 +67,10 @@ def task(request, key=''):
                 workspace=settings.LIMIT_WORKSPACE,
                 gpus=settings.LIMIT_GPUS,
                 gpu_memory=settings.LIMIT_GPU_MEMORY,
+                perf_instructions=settings.LIMIT_PERF_INSTRUCTIONS,
+                perf_cycles=settings.LIMIT_PERF_CYCLES,
+                cgroup_depth=settings.LIMIT_CGROUP_DEPTH,
+                cgroup_descendants=settings.LIMIT_CGROUP_DESCENDANTS,
             )
         t.limits.update(limits)
 

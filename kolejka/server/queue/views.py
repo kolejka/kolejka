@@ -69,6 +69,14 @@ def dequeue(request):
             continue
         if resources.time is not None and (tt.limits.time is None or tt.limits.time > resources.time):
             continue
+        if resources.perf_instructions is not None and (tt.limits.perf_instructions is None or tt.limits.perf_instructions > resources.perf_instructions):
+            continue
+        if resources.perf_cycles is not None and (tt.limits.perf_cycles is None or tt.limits.perf_cycles > resources.perf_cycles):
+            continue
+        if resources.cgroup_depth is not None and (tt.limits.cgroup_depth is None or tt.limits.cgroup_depth > resources.cgroup_depth):
+            continue
+        if resources.cgroup_descendants is not None and (tt.limits.cgroup_descendants is None or tt.limits.cgroup_descendants > resources.cgroup_descendants):
+            continue
 
         tasks.append(tt.dump())
         t.assignee = request.user
@@ -91,6 +99,12 @@ def dequeue(request):
             image_usage[tt.image] = max(image_usage.get(tt.image, 0), tt.limits.image)
         if resources.workspace is not None:
             resources.workspace -= tt.limits.workspace
+        if resources.perf_instructions is not None:
+            resources.perf_instructions -= tt.limits.perf_instructions
+        if resources.perf_cycles is not None:
+            resources.perf_cycles -= tt.limits.perf_cycles
+        if resources.cgroup_descendants is not None:
+            resources.cgroup_descendants -= tt.limits.cgroup_descendants
         if tt.exclusive:
             break
 

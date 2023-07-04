@@ -32,6 +32,10 @@ def settings(request):
             time=django_settings.LIMIT_TIME,
             gpus=django_settings.LIMIT_GPUS,
             gpu_memory=django_settings.LIMIT_GPU_MEMORY,
+            perf_instructions=django_settings.LIMIT_PERF_INSTRUCTIONS,
+            perf_cycles=django_settings.LIMIT_PERF_CYCLES,
+            cgroup_depth=django_settings.LIMIT_CGROUP_DEPTH,
+            cgroup_descendants=django_settings.LIMIT_CGROUP_DESCENDANTS,
         )
     response['limits'] = limits.dump()
     return OKResponse(response)

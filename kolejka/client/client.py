@@ -200,6 +200,10 @@ class KolejkaClient:
         limits.time = self.config.time
         limits.network = self.config.network
         limits.gpus = self.config.gpus
+        limits.perf_instructions = self.config.perf_instructions
+        limits.perf_cycles = self.config.perf_cycles
+        limits.cgroup_depth = self.config.cgroup_depth
+        limits.cgroup_descendants = self.config.cgroup_descendants
         if limits.gpus is None:
             limits.gpus = task.limits.gpus
         limits.gpu_memory = self.config.gpu_memory
@@ -335,6 +339,10 @@ def config_parser_task_put(parser):
     parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
     parser.add_argument('--gpu-memory', type=MemoryAction, help='gpu memory limit')
+    parser.add_argument('--perf-instructions', type=BigIntAction, help='CPU instructions limit')
+    parser.add_argument('--perf-cycles', type=BigIntAction, help='CPU cycles limit')
+    parser.add_argument('--cgroup-depth', type=int, help='Cgroup depth limit')
+    parser.add_argument('--cgroup-descendants', type=int, help='Cgroup descendants limit')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()
@@ -422,6 +430,10 @@ def config_parser_execute(parser):
     parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
     parser.add_argument('--gpu-memory', type=MemoryAction, help='gpu memory limit')
+    parser.add_argument('--perf-instructions', type=BigIntAction, help='CPU instructions limit')
+    parser.add_argument('--perf-cycles', type=BigIntAction, help='CPU cycles limit')
+    parser.add_argument('--cgroup-depth', type=int, help='Cgroup depth limit')
+    parser.add_argument('--cgroup-descendants', type=int, help='Cgroup descendants limit')
     def execute(args):
         kolejka_config(args=args)
         client = KolejkaClient()

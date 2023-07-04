@@ -2,7 +2,7 @@
 
 from kolejka.common import settings
 
-from .parse import parse_time, parse_memory, parse_int, parse_bool
+from .parse import parse_time, parse_memory, parse_bigint, parse_int, parse_bool
 from .parse import unparse_time, unparse_memory
 from .parse import json_dict_load
 
@@ -60,6 +60,11 @@ class KolejkaLimits:
         self.gpus = parse_int(args.get('gpus', None))
         self.gpus_offset = parse_int(args.get('gpus_offset', None))
         self.gpu_memory = parse_memory(args.get('gpu_memory', None))
+        self.perf_instructions = parse_bigint(args.get('perf_instructions', None))
+        self.perf_cycles = parse_bigint(args.get('perf_cycles', None))
+        self.cgroup_depth = parse_int(args.get('cgroup_depth', None))
+        self.cgroup_descendants = parse_int(args.get('cgroup_descendants', None))
+
         self.correct()
 
     def dump(self):
@@ -91,6 +96,14 @@ class KolejkaLimits:
             res['gpus_offset'] = self.gpus_offset
         if self.gpu_memory is not None:
             res['gpu_memory'] = unparse_memory(self.gpu_memory)
+        if self.perf_instructions is not None:
+            res['perf_instructions'] = self.perf_instructions
+        if self.perf_cycles is not None:
+            res['perf_cycles'] = self.perf_cycles
+        if self.cgroup_depth is not None:
+            res['cgroup_depth'] = self.cgroup_depth
+        if self.cgroup_descendants is not None:
+            res['cgroup_descendants'] = self.cgroup_descendants
         return res
 
     def update(self, other):
@@ -107,6 +120,10 @@ class KolejkaLimits:
         self.gpus = min_none_is_min(self.gpus, other.gpus)
         self.gpus_offset = min_none(self.gpus_offset, other.gpus_offset)
         self.gpu_memory = min_none(self.gpu_memory, other.gpu_memory)
+        self.perf_instructions = min_none(self.perf_instructions, other.perf_instructions)
+        self.perf_cycles = min_none(self.perf_cycles, other.perf_cycles)
+        self.cgroup_depth = min_none(self.cgroup_depth, other.cgroup_depth)
+        self.cgroup_descendants = min_none(self.cgroup_descendants, other.cgroup_descendants)
         self.correct()
 
     def copy(self, other):
@@ -269,6 +286,27 @@ class KolejkaStats:
         def copy(self, other):
             self.load(other.dump())
 
+    class PerfStats:
+        def __init__(self, **kwargs):
+            self.load(kwargs)
+        def load(self, data, **kwargs):
+            args = json_dict_load(data)
+            args.update(kwargs)
+            self.instructions = parse_int(args.get('instructions', None))
+            self.cycles = parse_int(args.get('cycles', None))
+        def dump(self):
+            res = dict()
+            if self.instructions is not None:
+                res['instructions'] = self.instructions
+            if self.cycles is not None:
+                res['cycles'] = self.cycles
+            return res
+        def update(self, other):
+            self.instructions = max_none(self.instructions, other.instructions)
+            self.cycles = max_none(self.cycles, other.cycles)
+        def copy(self, other):
+            self.load(other.dump())
+
     def __init__(self, **kwargs):
         self.load(kwargs)
 
@@ -289,6 +327,8 @@ class KolejkaStats:
         self.memory.load(args.get('memory', {}))
         self.pids = KolejkaStats.PidsStats()
         self.pids.load(args.get('pids', {}))
+        self.perf = KolejkaStats.PerfStats()
+        self.perf.load(args.get('perf', {}))
         self.time = parse_time(args.get('time', None))
         self.gpus = dict()
         for key, val in args.get('gpus', {}).items():
@@ -305,6 +345,7 @@ class KolejkaStats:
         res['cpus'] = dict( [ (k, v.dump()) for k,v in self.cpus.items() ] )
         res['memory'] = self.memory.dump()
         res['pids'] = self.pids.dump()
+        res['perf'] = self.perf.dump()
         if self.time is not None:
             res['time'] = unparse_time(self.time)
         res['gpus'] = dict([(k, v.dump()) for k, v in self.gpus.items()])
@@ -322,6 +363,7 @@ class KolejkaStats:
         self.cpu.update(sumcpus)
         self.memory.update(other.memory)
         self.pids.update(other.pids)
+        self.perf.update(other.perf)
         self.time = max_none(self.time, other.time)
         for k,v in other.gpus.items():
             if k not in self.gpus:

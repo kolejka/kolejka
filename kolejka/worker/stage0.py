@@ -60,6 +60,10 @@ def stage0(task_path, result_path, temp_path=None, consume_task_folder=False):
     limits.time = config.time
     limits.network = config.network
     limits.gpus = config.gpus
+    limits.perf_instructions = config.perf_instructions
+    limits.perf_cycles = config.perf_cycles
+    limits.cgroup_depth = config.cgroup_depth
+    limits.cgroup_descendants = config.cgroup_descendants
     if limits.gpus is None:
         limits.gpus = len(gpu_stats().gpus)
     task.limits.update(limits)
@@ -294,6 +298,10 @@ def config_parser(parser):
     parser.add_argument('--time', action=TimeAction, help='time limit')
     parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
+    parser.add_argument('--perf-instructions', type=BigIntAction, help='CPU instructions limit')
+    parser.add_argument('--perf-cycles', type=BigIntAction, help='CPU cycles limit')
+    parser.add_argument('--cgroup-depth', type=int, help='Cgroup depth limit')
+    parser.add_argument('--cgroup-descendants', type=int, help='Cgroup descendants limit')
     def execute(args):
         kolejka_config(args=args)
         config = worker_config()

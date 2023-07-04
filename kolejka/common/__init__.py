@@ -5,7 +5,7 @@ from kolejka.common import settings
 
 from .cgroups import ControlGroupSystem
 from .http_socket import HTTPUnixServer, HTTPUnixConnection
-from .parse import TimeAction, MemoryAction, parse_time, parse_memory
+from .parse import BigIntAction, TimeAction, MemoryAction, parse_bigint, parse_time, parse_memory
 
 from .config import KolejkaConfig, kolejka_config, client_config, foreman_config, worker_config
 from .limits import KolejkaLimits, KolejkaStats

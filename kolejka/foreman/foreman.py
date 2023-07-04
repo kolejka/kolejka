@@ -24,7 +24,7 @@ import uuid
 
 from kolejka.common import kolejka_config, foreman_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
-from kolejka.common import MemoryAction, TimeAction, parse_memory
+from kolejka.common import MemoryAction, TimeAction, BigIntAction
 from kolejka.client import KolejkaClient
 from kolejka.common.gpu import gpu_stats
 from kolejka.common.images import (
@@ -127,6 +127,10 @@ def foreman():
     limits.time = config.time
     limits.network = config.network
     limits.gpus = config.gpus
+    limits.perf_instructions = config.perf_instructions
+    limits.perf_cycles = config.perf_cycles
+    limits.cgroup_depth = config.cgroup_depth
+    limits.cgroup_descendants = config.cgroup_descendants
     if limits.gpus is None:
         limits.gpus = len(gstats)
     limits.gpu_memory = config.gpu_memory
@@ -183,6 +187,14 @@ def foreman():
                                 ok = False
                         if resources.workspace is not None and task.limits.workspace > resources.workspace:
                             ok = False
+                        if resources.perf_instructions is not None and task.limits.perf_instructions > resources.perf_instructions:
+                            ok = False
+                        if resources.perf_cycles is not None and task.limits.perf_cycles > resources.perf_cycles:
+                            ok = False
+                        if resources.cgroup_depth is not None and task.limits.cgroup_depth > resources.cgroup_depth:
+                            ok = False
+                        if resources.cgroup_descendants is not None and task.limits.cgroup_descendants > resources.cgroup_descendants:
+                            ok = False
                         if ok:
                             children_args.append([config.temp_path, task])
                             cpus_offset += task.limits.cpus
@@ -204,6 +216,12 @@ def foreman():
                                 image_usage[task.image] = max(image_usage.get(task.image, 0), task.limits.image)
                             if resources.workspace is not None:
                                 resources.workspace -= task.limits.workspace
+                            if resources.perf_instructions is not None:
+                                resources.perf_instructions -= task.limits.perf_instructions
+                            if resources.perf_cycles is not None:
+                                resources.perf_cycles -= task.limits.perf_cycles
+                            if resources.cgroup_descendants is not None:
+                                resources.cgroup_descendants -= task.limits.cgroup_descendants
                             if task.limits.time is None:
                                 tasks_timeout = -1
                             else:
@@ -257,6 +275,10 @@ def config_parser(parser):
     parser.add_argument('--network', type=bool, help='allow netowrking')
     parser.add_argument('--gpus', type=int, help='gpus limit')
     parser.add_argument('--gpu-memory', type=MemoryAction, help='gpu memory limit')
+    parser.add_argument('--perf-instructions', type=BigIntAction, help='CPU instructions limit')
+    parser.add_argument('--perf-cycles', type=BigIntAction, help='CPU cycles limit')
+    parser.add_argument('--cgroup-depth', type=int, help='Cgroup depth limit')
+    parser.add_argument('--cgroup-descendants', type=int, help='Cgroup descendants limit')
     def execute(args):
         kolejka_config(args=args)
         foreman()

@@ -8,7 +8,7 @@ import json
 import logging
 import os
 
-from .parse import parse_memory, parse_time, parse_bool, parse_int, parse_float, parse_str_list
+from .parse import parse_memory, parse_time, parse_bigint, parse_bool, parse_int, parse_float, parse_str_list
 from .tags import foreman_auto_tags
 
 def config_dirs():
@@ -79,6 +79,10 @@ class KolejkaConfig:
         self.client.__setattr__('network', parse_bool(client_config.get('network', default_config.get('network', None))))
         self.client.__setattr__('gpus', parse_int(client_config.get('gpus', default_config.get('gpus', None))))
         self.client.__setattr__('gpu_memory', parse_memory(client_config.get('gpu_memory', default_config.get('gpu_memory', None))))
+        self.client.__setattr__('perf_instructions', parse_bigint(client_config.get('perf_instructions', default_config.get('perf_instructions', None))))
+        self.client.__setattr__('perf_cycles', parse_bigint(client_config.get('perf_cycles', default_config.get('perf_cycles', None))))
+        self.client.__setattr__('cgroup_depth', parse_int(client_config.get('cgroup_depth', default_config.get('cgroup_depth', None))))
+        self.client.__setattr__('cgroup_descendants', parse_int(client_config.get('cgroup_descendants', default_config.get('cgroup_descendants', None))))
 
         self.foreman.__setattr__('temp_path', foreman_config.get('temp', default_config.get('temp', None)))
         self.foreman.__setattr__('interval', parse_float(foreman_config.get('interval', default_config.get('interval', None) or settings.FOREMAN_INTERVAL)))
@@ -102,6 +106,10 @@ class KolejkaConfig:
         self.foreman.__setattr__('tags', tags)
         self.foreman.__setattr__('gpus', parse_int(foreman_config.get('gpus', default_config.get('gpus', None))))
         self.foreman.__setattr__('gpu_memory', parse_memory(foreman_config.get('gpu_memory', default_config.get('gpu_memory', None))))
+        self.foreman.__setattr__('perf_instructions', parse_bigint(foreman_config.get('perf_instructions', default_config.get('perf_instructions', None))))
+        self.foreman.__setattr__('perf_cycles', parse_bigint(foreman_config.get('perf_cycles', default_config.get('perf_cycles', None))))
+        self.foreman.__setattr__('cgroup_depth', parse_int(foreman_config.get('cgroup_depth', default_config.get('cgroup_depth', None))))
+        self.foreman.__setattr__('cgroup_descendants', parse_int(foreman_config.get('cgroup_descendants', default_config.get('cgroup_descendants', None))))
 
         self.worker.__setattr__('debug', parse_bool(worker_config.get('debug', default_config.get('debug', None) or False)))
         self.worker.__setattr__('verbose', parse_bool(worker_config.get('verbose', default_config.get('verbose', None) or False)))
@@ -117,6 +125,10 @@ class KolejkaConfig:
         self.worker.__setattr__('time', parse_time(worker_config.get('time', default_config.get('time', None))))
         self.worker.__setattr__('network', parse_bool(worker_config.get('network', default_config.get('network', None))))
         self.worker.__setattr__('gpus', parse_int(worker_config.get('gpus', default_config.get('gpus', None))))
+        self.worker.__setattr__('perf_instructions', parse_bigint(worker_config.get('perf_instructions', default_config.get('perf_instructions', None))))
+        self.worker.__setattr__('perf_cycles', parse_bigint(worker_config.get('perf_cycles', default_config.get('perf_cycles', None))))
+        self.worker.__setattr__('cgroup_depth', parse_int(worker_config.get('cgroup_depth', default_config.get('cgroup_depth', None))))
+        self.worker.__setattr__('cgroup_descendants', parse_int(worker_config.get('cgroup_descendants', default_config.get('cgroup_descendants', None))))
 
 _config = None
 def _configure(config_file=None, config=None, args=None, **kwargs):

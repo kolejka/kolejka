@@ -146,6 +146,8 @@ def main():
     parser.add_argument('--swap', action=MemoryAction, help='swap limit')
     parser.add_argument('--pids', type=int, help='pids limit')
     parser.add_argument('--time', action=TimeAction, help='time limit')
+    parser.add_argument('--perf-instructions', type=BigIntAction, help='CPU instructions limit')
+    parser.add_argument('--perf-cycles', type=BigIntAction, help='CPU cycles limit')
     parser.add_argument('args', nargs=argparse.REMAINDER, help='command line to run')
     args = parser.parse_args()
     level=logging.WARNING
@@ -168,6 +170,8 @@ def main():
     limits.swap = args.swap
     limits.pids = args.pids
     limits.time = args.time
+    limits.perf_instructions = args.perf_instructions
+    limits.perf_cycles = args.perf_cycles
 
     env = dict(os.environ)
     kwargs = dict()
