@@ -7,6 +7,7 @@ import logging
 import re
 import subprocess
 import threading
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -132,6 +133,14 @@ def task(request, key=''):
 def result_callback(result):
     url = result.task.task().callback_url
     if url:
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+            if parsed_url.scheme not in [ 'http', 'https' ] or parsed_url.hostname not in settings.ALLOWED_CALLBACK_HOSTS:
+                logging.warning(f'Callback \'{url}\' is not allowed')
+                return
+        except:
+            logging.warning(f'Callback \'{url}\' is malformed')
+            return
         headers = dict()
         headers['User-Agent'] = settings.CALLBACK_USER_AGENT
         headers['Content-Type'] = 'application/json'

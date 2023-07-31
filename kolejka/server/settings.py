@@ -140,6 +140,11 @@ USE_X_SENDFILE = False
 
 CALLBACK_USER_AGENT = 'kolejka-server'
 
+ALLOWED_CALLBACK_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
+
 try:
     from kolejka.server.settings_local import *
 except ImportError:
