@@ -14,7 +14,7 @@ import time
 
 from kolejka.common import kolejka_config, client_config
 from kolejka.common import KolejkaTask, KolejkaResult, KolejkaLimits
-from kolejka.common import MemoryAction, TimeAction
+from kolejka.common import MemoryAction, TimeAction, BigIntAction
 
 class KolejkaClientError(Exception):
     pass

@@ -6,6 +6,8 @@ import json
 import logging
 import re
 import subprocess
+import threading
+import urllib.request
 import uuid
 
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseNotAllowed, StreamingHttpResponse
@@ -127,6 +129,25 @@ def task(request, key=''):
         return OKResponse(response)
     return HttpResponseNotAllowed(['HEAD', 'GET', 'POST', 'PUT', 'DELETE'])
 
+def result_callback(result):
+    url = result.task.task().callback_url
+    if url:
+        headers = dict()
+        headers['User-Agent'] = settings.CALLBACK_USER_AGENT
+        headers['Content-Type'] = 'application/json'
+        response = dict()
+        response['task'] = result.task.task().dump()
+        response['result'] = result.result().dump()
+        data = bytes(json.dumps(response), 'utf-8')
+        request = urllib.request.Request(url=url, data=data, headers=headers, method='POST')
+        def opener(request):
+            try:
+                response = urllib.request.urlopen(request)
+            except:
+                logging.warning(f'Callback \'{url}\' failed')
+                pass
+        threading.Thread(target=opener, args=[request]).run()
+
 def result(request, key=''):
     if request.method == 'POST':
         if key != '':
@@ -163,6 +184,7 @@ def result(request, key=''):
             result.files.add(ref)
         response = dict()
         response['result'] = result.result().dump()
+        result_callback(result)
         return OKResponse(response)
     if not request.user.is_authenticated:
         return HttpResponseForbidden()

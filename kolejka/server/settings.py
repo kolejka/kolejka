@@ -138,6 +138,8 @@ IMAGE_REGISTRY_PASSWORD = None
 
 USE_X_SENDFILE = False
 
+CALLBACK_USER_AGENT = 'kolejka-server'
+
 try:
     from kolejka.server.settings_local import *
 except ImportError:
