@@ -195,6 +195,7 @@ class KolejkaTask():
         self.files.load(args.get('files', {}))
         self.collect = KolejkaCollect()
         self.collect.load(args.get('collect', []))
+        self.callback_url = parse_str(args.get('callback_url', None))
 
     def dump(self):
         res = dict()
@@ -216,6 +217,8 @@ class KolejkaTask():
             res['stderr'] = self.stderr
         res['files'] = self.files.dump()
         res['collect'] = self.collect.dump()
+        if self.callback_url is not None:
+            res['callback_url'] = self.callback_url
         return res
     
     def commit(self):
