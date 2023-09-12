@@ -20,7 +20,7 @@ import traceback
 from urllib.parse import urlparse, urlencode, parse_qsl
 import uuid
 
-from kolejka.common import HTTPUnixServer, HTTPUnixConnection
+from kolejka.common.http_socket import HTTPUnixServer, HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 from kolejka.common import ControlGroupSystem
 

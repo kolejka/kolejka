@@ -10,7 +10,7 @@ from multiprocessing import Process
 import pickle
 import subprocess
 
-from kolejka.common import HTTPUnixConnection
+from kolejka.common.http_socket import HTTPUnixConnection
 from kolejka.common import KolejkaLimits, KolejkaStats
 
 class KolejkaObserverClient:
