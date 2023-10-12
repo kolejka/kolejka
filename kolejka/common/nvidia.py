@@ -20,7 +20,7 @@ class NvidiaSMILog:
             self.temperature = float(element.find('temperature').find('gpu_temp').text.split()[0])
             self.fan_speed = float(element.find('fan_speed').text.split()[0])
             self.performance_state = element.find('performance_state').text
-            self.power_draw = float(element.find('power_readings').find('power_draw').text.split()[0])
+            self.power_draw = float((element.find('power_readings') or element.find('gpu_power_readings')).find('power_draw').text.split()[0])
             self.memory_total = int(float(element.find('fb_memory_usage').find('total').text.split()[0]) * 1024**2)
             self.memory_free = int(float(element.find('fb_memory_usage').find('free').text.split()[0]) * 1024**2)
             self.utilization = float(element.find('utilization').find('gpu_util').text.split()[0]) / 100
