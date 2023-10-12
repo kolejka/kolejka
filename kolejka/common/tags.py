@@ -82,8 +82,17 @@ def gpu_tags():
 
     return tags
 
+def system_tags():
+    tags = set()
+    uname = os.uname()
+    if uname.nodename:
+        tags.add('hostname:'+uname.nodename)
+    tags.add('kernel:'+uname.release)
+    return tags
+
 def foreman_auto_tags():
     tags = set()
     tags.update(cpu_tags())
     tags.update(gpu_tags())
+    tags.update(system_tags())
     return list(tags)
