@@ -23,7 +23,7 @@ def parse_cpu_name(name):
     name = [ n for n in name if not n == 'solo' ]
     name = [ n for n in name if not n == 'dual' ]
     name = [ n for n in name if not n == 'duo' ]
-    name = [ n for n in name if not n == 'trile' ]
+    name = [ n for n in name if not n == 'triple' ]
     name = [ n for n in name if not n == 'quad' ]
     name = [ n for n in name if not n == 'eight' ]
     name = [ n for n in name if not re.match('intel.*', n) ]
@@ -92,7 +92,16 @@ def system_tags():
 
 def foreman_auto_tags():
     tags = set()
-    tags.update(cpu_tags())
-    tags.update(gpu_tags())
-    tags.update(system_tags())
-    return list(tags)
+    try:
+        tags.update(cpu_tags())
+    except:
+        pass
+    try:
+        tags.update(gpu_tags())
+    except:
+        pass
+    try:
+        tags.update(system_tags())
+    except:
+        pass
+    return sorted(list(tags))
