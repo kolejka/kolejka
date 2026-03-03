@@ -3,7 +3,6 @@
 
 from kolejka.common import settings
 
-import cgi
 import datetime
 import hashlib
 import http.server
@@ -376,10 +375,8 @@ class ObserverHandler(http.server.BaseHTTPRequestHandler):
             if 'Content-Length' in self.headers:
                 post_length   = int(self.headers['Content-Length'])
                 if 'Content-Type' in self.headers:
-                    post_type, post_type_dict  = cgi.parse_header(self.headers['Content-Type'])
-                    assert post_type == 'application/json'
-                    post_charset = post_type_dict.get('charset', 'utf-8')
-                    post_data = json.loads(self.rfile.read(post_length).decode(post_charset))
+                    assert self.headers['Content-Type'] == 'application/json; charset=utf-8'
+                    post_data = json.loads(self.rfile.read(post_length).decode('utf-8'))
             url = urlparse(self.path)
             path = url.path.strip('/ ').lower()
             assert re.match(r'[a-z]*', path)
